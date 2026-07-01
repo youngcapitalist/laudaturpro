@@ -1,5 +1,6 @@
 import { LaudaturNav, LaudaturFooter } from "./components/LaudaturChrome";
 import { BundleCard, CourseCard } from "./components/ProductCard";
+import TestimonialCarousel from "./components/TestimonialCarousel";
 import { BUNDLES, SUBJECT_GROUPS } from "../lib/products";
 import { PROFESSOR_GROUPS } from "../lib/professors";
 import { orderUrl } from "./config/site";
@@ -43,35 +44,38 @@ export default function HomePage() {
       <section className="border-b border-line bg-white">
         <div className="mx-auto max-w-site px-6 py-16 md:px-8 md:py-24">
           <span className="inline-flex rounded-pill bg-navy px-3.5 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-gold">
-            Laudatur Pro · syksy 2026
+            Ilmainen testi · syksy 2026
           </span>
           <h1 className="mt-5 max-w-3xl font-heading text-4xl font-extrabold leading-[1.08] tracking-tight text-navy md:text-5xl">
-            Kaikki yo-aineet samassa paikassa — nosta arvosanoja syksyn 2026 kokeisiin
+            Nosta yo-arvosanasi — ilman satunnaista harjoittelua
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-navy/85">
-            Yli 1000 harjoitustehtävää kaikissa aineissa — AI-professori luo uusia yo-tason tehtäviä rajattomasti.
-            Teoria osa-alueittain, harkkakokeet ja selkeä polku kohti syksyn 2026 yo-koetta.
+            Selkeä polku kohti syksyn 2026 yo-koetta: teoria osa-alueittain, AI-professori jokaisessa aineessa
+            ja yli 1000 harjoitustehtävää. Kokeile 3 kysymystä ilmaiseksi — tai tee testi ja saat henkilökohtaisen hinnan.
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <a
-              href={orderUrl("laudatur-pro")}
+              href="/testi"
               className="inline-flex rounded-pill bg-navy px-6 py-3.5 font-heading text-sm font-bold text-gold hover:bg-navy-light"
             >
-              Laudatur Pro — 399 €
+              Laske minulle hinta — ilmainen testi
             </a>
             <a
               href="/aine/matikka-pitka"
               className="inline-flex rounded-pill border-2 border-navy px-6 py-3.5 font-heading text-sm font-bold text-navy hover:bg-mist"
             >
-              Kokeile AI-professoria
+              Kokeile AI-professoria (3 kysymystä)
             </a>
             <a
-              href="#kurssit"
+              href={orderUrl("laudatur-pro")}
               className="inline-flex rounded-pill border-2 border-navy/30 px-6 py-3.5 font-heading text-sm font-bold text-navy/80 hover:bg-mist"
             >
-              Selaa aineita
+              Laudatur Pro — 399 €
             </a>
           </div>
+          <p className="mt-4 text-sm text-navy/55">
+            Ei sitoumusta testissä · Maksat vain jos jatkat · Pääsy yo-kokeisiin 2026 asti
+          </p>
           <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-navy/60">
             {PLATFORM_STATS.map((s) => (
               <li key={s.label}>
@@ -99,7 +103,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-site px-6 md:px-8">
           <h2 className="font-heading text-3xl font-extrabold text-navy">Näin se toimii</h2>
           <p className="mt-3 max-w-2xl text-navy/75">
-            Selkeä polku kohti tavoitearvosanaa — aloita kokeilemalla tai testillä, joka räätälöi hinnan sinulle.
+            Sama rakenne kuin parhailla yo-valmentautujilla — aloita ilmaiseksi, sitoudu vasta kun näet hyödyn.
           </p>
           <ol className="mt-10 grid gap-4 md:grid-cols-5">
             {PLATFORM_STEPS.map((s) => (
@@ -115,11 +119,13 @@ export default function HomePage() {
         </div>
       </section>
 
+      <TestimonialCarousel />
+
       <section id="professorit" className="border-b border-line bg-white py-14 md:py-20">
         <div className="mx-auto max-w-site px-6 md:px-8">
           <h2 className="font-heading text-3xl font-extrabold text-navy md:text-4xl">AI-professori joka aineessa</h2>
           <p className="mt-3 max-w-2xl text-navy/75">
-            Kokeile ilmaiseksi — 3 kysymystä per aine. Näet heti millaista yo-valmennus on.
+            Kokeile ilmaiseksi — 3 kysymystä per aine. Näet heti, miltä henkilökohtainen yo-valmennus tuntuu.
           </p>
           {PROFESSOR_GROUPS.map((group) => (
             <div key={group.id} className="mt-10">
@@ -152,7 +158,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-site px-6 md:px-8">
           <h2 className="font-heading text-3xl font-extrabold text-navy md:text-4xl">Paketit</h2>
           <p className="mt-3 max-w-2xl text-navy/75">
-            Valitse kattava Pro-paketti tai Boost kolmelle tärkeimmälle aineelle.
+            Pro = kaikki aineet yhdellä hinnalla. Boost = 3 tärkeintä ainetta. Tai tee testi — saat henkilökohtaisen hinnan valintojesi mukaan.
           </p>
           <div className="mt-10 grid gap-6 md:grid-cols-2">
             {BUNDLES.map((b, i) => (
@@ -179,6 +185,24 @@ export default function HomePage() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="border-b border-line bg-navy py-14 text-white">
+        <div className="mx-auto max-w-site px-6 text-center md:px-8">
+          <p className="font-heading text-xs font-bold uppercase tracking-widest text-gold">Vain sinulle</p>
+          <h2 className="mt-3 font-heading text-2xl font-extrabold md:text-3xl">
+            Tee 2 minuutin testi — saat henkilökohtaisen yo-suunnitelman ja hinnan
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-white/75">
+            Valitse aineet, tavoite ja tärkeys — rakennamme paketin ja hinnan juuri sinulle. Ei sitoumusta, ei piilokuluja.
+          </p>
+          <a
+            href="/testi"
+            className="mt-8 inline-flex rounded-pill bg-gold px-8 py-3.5 font-heading text-sm font-bold text-navy hover:opacity-90"
+          >
+            Aloita ilmainen testi
+          </a>
         </div>
       </section>
 

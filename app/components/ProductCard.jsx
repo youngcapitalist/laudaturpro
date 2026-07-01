@@ -46,7 +46,7 @@ export function BundleCard({ bundle, featured = false }) {
           featured ? "bg-gold text-navy hover:bg-gold-light" : "bg-navy text-white hover:bg-navy-light"
         }`}
       >
-        Valitse {bundle.name}
+        Valitse {bundle.name} →
       </a>
     </article>
   );

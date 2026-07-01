@@ -1,4 +1,6 @@
 import Stripe from "stripe";
+import { markDripConverted } from "../../../lib/drip/enroll.js";
+import { canonicalEmailKey, normalizeEmail } from "../../../lib/drip/email-normalize.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,9 +60,10 @@ export async function POST(request) {
   }
 
   const meta = session.metadata || {};
-  const email = session.customer_details?.email || session.customer_email || "";
+  const email = normalizeEmail(session.customer_details?.email || session.customer_email || "");
   const record = {
     email,
+    email_key: canonicalEmailKey(email),
     name: meta.customer_name || session.customer_details?.name || null,
     product_id: meta.product_id || null,
     product_name: meta.product_name || null,
@@ -73,6 +76,12 @@ export async function POST(request) {
   };
 
   const result = await saveAccess(record);
+
+  if (result.ok && email) {
+    await markDripConverted(email, "laudaturpro").catch((err) =>
+      console.error("[DRIP] mark converted failed", err)
+    );
+  }
 
   return Response.json({
     ok: true,

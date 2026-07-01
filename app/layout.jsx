@@ -1,6 +1,7 @@
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { Poppins, Open_Sans } from "next/font/google";
+import SocialProofToast from "./components/SocialProofToast";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -30,6 +31,7 @@ export default function RootLayout({ children }) {
     <html lang="fi" className={`${poppins.variable} ${openSans.variable}`}>
       <body>
         {children}
+        <SocialProofToast />
         <Analytics />
       </body>
     </html>

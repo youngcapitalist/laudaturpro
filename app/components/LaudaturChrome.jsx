@@ -26,7 +26,7 @@ import { AuthNavLinks } from "./AuthNavLinks";
 
 export function LaudaturNav() {
   const links = [
-    { label: "Testi", href: "/testi" },
+    { label: "Laske hintasi", href: "/testi" },
     { label: "AI-professorit", href: "/#professorit" },
     { label: "Kurssit", href: "/#kurssit" },
     { label: "Paketit", href: "/#paketit" },
@@ -55,10 +55,10 @@ export function LaudaturNav() {
           <AuthNavLinks />
         </nav>
         <a
-          href="/tilaa?paketti=laudatur-pro"
+          href="/testi"
           className="ml-auto rounded-pill bg-gold px-5 py-2.5 font-heading text-sm font-bold text-navy transition-opacity hover:opacity-90"
         >
-          Tilaa nyt
+          Laske hintasi
         </a>
       </div>
     </header>

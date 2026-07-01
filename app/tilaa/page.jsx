@@ -17,9 +17,15 @@ export default function TilaaPage({ searchParams }) {
       <LaudaturNav />
       <section className="py-14 md:py-20">
         <div className="mx-auto max-w-lg px-5 md:px-8">
-          <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Tilaus</p>
-          <h1 className="mt-2 font-heading text-3xl font-extrabold text-navy">Tilaus</h1>
-          <p className="mt-3 text-sm text-navy/70">Valitse tuote — siirryt suoraan kassalle.</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Ilmainen · 2 min</p>
+          <h1 className="mt-2 font-heading text-3xl font-extrabold text-navy">Laske sinulle sopiva hinta</h1>
+          <p className="mt-3 text-sm leading-relaxed text-navy/70">
+            Valitse tuote suoraan — tai tee ensin{" "}
+            <a href="/testi" className="font-semibold text-navy underline">
+              ilmainen testi
+            </a>{" "}
+            ja saat henkilökohtaisen hinnan valintojesi perusteella.
+          </p>
           <div className="mt-8">
             <Suspense
               fallback={
