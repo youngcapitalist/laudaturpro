@@ -1,10 +1,10 @@
 import { LaudaturNav, LaudaturFooter } from "../components/LaudaturChrome";
-import OrderForm from "../components/OrderForm";
+import CheckoutForm from "../components/CheckoutForm";
 import { allProductIds } from "../../lib/products";
 
 export const metadata = {
   title: "Tilaa — LaudaturPro.fi",
-  description: "Tilaa yo-valmennuskurssi tai Laudatur Pro -paketti.",
+  description: "Maksa turvallisesti Stripe Checkoutissa ja aloita yo-valmennus heti.",
 };
 
 export default function TilaaPage({ searchParams }) {
@@ -12,16 +12,17 @@ export default function TilaaPage({ searchParams }) {
   const valid = allProductIds().includes(paketti) ? paketti : "";
 
   return (
-    <main>
+    <main className="min-h-screen bg-slate-wash">
       <LaudaturNav />
-      <section className="border-b border-line bg-mist py-14 md:py-20">
-        <div className="mx-auto max-w-lg px-6 md:px-8">
-          <h1 className="font-heading text-3xl font-extrabold text-navy">Tilaa kurssi</h1>
+      <section className="py-14 md:py-20">
+        <div className="mx-auto max-w-lg px-5 md:px-8">
+          <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Tilaus</p>
+          <h1 className="mt-2 font-heading text-3xl font-extrabold text-navy">Aloita LaudaturPro</h1>
           <p className="mt-3 text-sm text-navy/70">
-            Syötä sähköpostisi — ohjaamme maksuun tai lähetämme laskun sähköpostitse.
+            Syötä sähköpostisi — siirryt Stripe-maksuun. Pääsy kurssille heti maksun jälkeen.
           </p>
           <div className="mt-8">
-            <OrderForm initialProductId={valid} />
+            <CheckoutForm initialProductId={valid} />
           </div>
         </div>
       </section>

@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --navy: #064e3b;
-  --gold: #6ee7b7;
+  --navy: #0a2540;
+  --gold: #d4af37;
 }
 
 html {
@@ -12,11 +12,20 @@ html {
 }
 
 body {
-  @apply bg-white text-navy font-body antialiased;
+  @apply bg-slate-wash text-navy font-body antialiased;
 }
 
 h1,
 h2,
 h3 {
   @apply font-heading;
+}
+
+@layer utilities {
+  .hero-grid {
+    background-image:
+      linear-gradient(rgba(212, 175, 55, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(212, 175, 55, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
 }

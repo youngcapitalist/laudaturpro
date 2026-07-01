@@ -3,18 +3,12 @@
 import { useMemo, useState } from "react";
 import { BUNDLES, getProduct, SUBJECT_GROUPS } from "../../lib/products";
 
-const STRIPE_LINKS = {
-  "laudatur-pro": process.env.NEXT_PUBLIC_LAUDATUR_STRIPE_LINK_PRO,
-  "laudatur-boost": process.env.NEXT_PUBLIC_LAUDATUR_STRIPE_LINK_BOOST,
-};
-
-export default function OrderForm({ initialProductId = "" }) {
+export default function CheckoutForm({ initialProductId = "" }) {
   const [productId, setProductId] = useState(initialProductId);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
-  const [done, setDone] = useState(false);
 
   const product = useMemo(() => (productId ? getProduct(productId) : null), [productId]);
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -26,60 +20,32 @@ export default function OrderForm({ initialProductId = "" }) {
     setError(null);
 
     const params = new URLSearchParams(window.location.search);
-    const utm = {
-      utm_source: params.get("utm_source"),
-      utm_medium: params.get("utm_medium"),
-      utm_campaign: params.get("utm_campaign"),
-    };
-
     try {
-      const res = await fetch("/api/lead", {
+      const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: email.trim(),
           name: name.trim() || null,
-          source: "laudaturpro",
           productId: product.id,
-          productName: product.name,
-          priceEur: product.priceEur,
-          utm,
+          utm: {
+            utm_source: params.get("utm_source"),
+            utm_medium: params.get("utm_medium"),
+            utm_campaign: params.get("utm_campaign"),
+          },
         }),
       });
-      if (!res.ok) throw new Error("request_failed");
-
-      const stripeUrl = STRIPE_LINKS[product.id];
-      if (stripeUrl) {
-        const url = new URL(stripeUrl);
-        url.searchParams.set("prefilled_email", email.trim());
-        window.location.href = url.toString();
-        return;
-      }
-
-      setDone(true);
-    } catch {
-      setError("Tilauksen lähetys epäonnistui. Yritä uudelleen tai ota yhteyttä info@laudaturpro.fi.");
-    } finally {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || "checkout_failed");
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err.message === "checkout_failed" ? "Maksun käynnistys epäonnistui." : String(err.message));
       setSubmitting(false);
     }
   }
 
-  if (done) {
-    return (
-      <div className="rounded-2xl border border-line bg-white p-8 text-center">
-        <p className="font-heading text-2xl font-extrabold text-navy">Kiitos tilauksesta!</p>
-        <p className="mt-3 text-sm text-navy/70">
-          Lähetämme sähköpostiisi ({email}) ohjeet maksamiseen ja kurssipääsyyn pian.
-        </p>
-        <a href="/" className="mt-6 inline-flex rounded-pill bg-navy px-6 py-3 font-heading text-sm font-bold text-gold">
-          Takaisin etusivulle
-        </a>
-      </div>
-    );
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="rounded-2xl border border-line bg-white p-6 md:p-8">
+    <form onSubmit={handleSubmit} className="rounded-card border border-line bg-white p-6 shadow-card md:p-8">
       {!product && (
         <div className="mb-6">
           <label htmlFor="product-select" className="block text-sm font-semibold text-navy">
@@ -89,7 +55,7 @@ export default function OrderForm({ initialProductId = "" }) {
             id="product-select"
             value={productId}
             onChange={(e) => setProductId(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-line px-4 py-3 text-sm font-semibold text-navy focus:border-navy focus:outline-none"
+            className="mt-1.5 w-full rounded-xl border border-line px-4 py-3 text-sm font-semibold text-navy focus:border-navy focus:outline-none focus:ring-2 focus:ring-gold/30"
           >
             <option value="">— Valitse —</option>
             <optgroup label="Paketit">
@@ -113,11 +79,11 @@ export default function OrderForm({ initialProductId = "" }) {
       )}
 
       {product && (
-        <div className="mb-6 rounded-xl bg-mist p-4">
-          <p className="text-xs font-semibold uppercase text-navy/50">Valittu tuote</p>
+        <div className="mb-6 rounded-xl border border-gold/30 bg-navy/5 p-4">
+          <p className="text-xs font-semibold uppercase text-navy-muted">Valittu tuote</p>
           <p className="mt-1 font-heading text-lg font-bold text-navy">{product.name}</p>
           {product.tagline && <p className="text-sm text-navy/65">{product.tagline}</p>}
-          <p className="mt-2 font-heading text-2xl font-extrabold text-navy">{product.priceEur} €</p>
+          <p className="mt-2 font-heading text-3xl font-extrabold text-navy">{product.priceEur} €</p>
         </div>
       )}
 
@@ -133,7 +99,7 @@ export default function OrderForm({ initialProductId = "" }) {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-line px-4 py-3 text-sm text-navy focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20"
+            className="mt-1.5 w-full rounded-xl border border-line px-4 py-3 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-gold/30"
             placeholder="sinä@esimerkki.fi"
           />
         </div>
@@ -147,7 +113,7 @@ export default function OrderForm({ initialProductId = "" }) {
             autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1.5 w-full rounded-xl border border-line px-4 py-3 text-sm text-navy focus:border-navy focus:outline-none focus:ring-2 focus:ring-navy/20"
+            className="mt-1.5 w-full rounded-xl border border-line px-4 py-3 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-gold/30"
           />
         </div>
       </div>
@@ -157,14 +123,11 @@ export default function OrderForm({ initialProductId = "" }) {
       <button
         type="submit"
         disabled={!emailValid || !product || submitting}
-        className="mt-6 w-full rounded-pill bg-navy py-3.5 font-heading text-sm font-bold text-gold transition-colors hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-6 w-full rounded-pill bg-navy py-3.5 font-heading text-sm font-bold text-gold transition hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {submitting ? "Lähetetään…" : product ? `Jatka — ${product.priceEur} €` : "Valitse tuote ensin"}
+        {submitting ? "Siirrytään maksuun…" : product ? `Maksa turvallisesti — ${product.priceEur} €` : "Valitse tuote"}
       </button>
-
-      <p className="mt-4 text-center text-xs text-navy/50">
-        Maksu Stripe-kautta. 14 päivän peruutusoikeus ennen kurssin alkua.
-      </p>
+      <p className="mt-4 text-center text-xs text-navy/50">Stripe Checkout · 14 pv peruutusoikeus ennen kurssin alkua</p>
     </form>
   );
 }
