@@ -17,7 +17,9 @@ export default async function KurssiDashboardPage() {
   return (
     <main className="mx-auto max-w-site px-4 py-10 md:px-8">
       <h1 className="font-heading text-3xl font-extrabold text-navy">Omat kurssit</h1>
-      <p className="mt-2 text-navy/70">Valitse aine ja avaa AI-professori. Pääsy voimassa kevään 2026 yo-kokeisiin.</p>
+      <p className="mt-2 text-navy/70">
+        Teoria, AI-professorit ja harkkakokeet syksyn 2026 yo-kokeisiin. Valitse aine alta.
+      </p>
 
       {allowedIds.length === 0 ? (
         <div className="mt-10 rounded-card border border-line bg-white p-8 text-center shadow-card">
@@ -48,10 +50,15 @@ export default async function KurssiDashboardPage() {
                     >
                       {p.initials}
                     </div>
-                    <div>
-                      <p className="font-heading font-bold text-navy group-hover:text-navy-light">{p.name}</p>
-                      <p className="text-sm text-navy-muted">{p.role}</p>
-                      <p className="mt-2 text-xs font-semibold text-gold-dark">Avaa chat →</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-heading font-bold text-navy group-hover:text-navy-light">{p.role}</p>
+                      <p className="mt-1 text-sm text-navy-muted line-clamp-2">{p.bio}</p>
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                        <span className="rounded-pill bg-mist px-2.5 py-1 text-navy/70">Teoria</span>
+                        <span className="rounded-pill bg-mist px-2.5 py-1 text-navy/70">AI-professori</span>
+                        <span className="rounded-pill bg-gold/15 px-2.5 py-1 text-navy/70">Harkkakoe</span>
+                      </div>
+                      <p className="mt-3 text-xs font-semibold text-gold-dark">Avaa kurssi →</p>
                     </div>
                   </Link>
                 ))}

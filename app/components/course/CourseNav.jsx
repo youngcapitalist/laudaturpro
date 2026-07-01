@@ -16,6 +16,9 @@ export async function CourseNav() {
       </Link>
       <div className="flex items-center gap-4">
         {user?.email && <span className="hidden text-xs text-white/60 sm:inline">{user.email}</span>}
+        <a href="/profiili" className="text-xs font-semibold text-gold hover:text-gold-light">
+          Profiili
+        </a>
         <LogoutButton />
       </div>
     </header>

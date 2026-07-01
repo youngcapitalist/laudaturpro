@@ -1,4 +1,5 @@
-import { orderUrl } from "../config/site";
+import { orderUrl, checkoutUrl } from "../config/site";
+import { getProfessorById } from "../../lib/access";
 
 export function BundleCard({ bundle, featured = false }) {
   const href = orderUrl(bundle.id);
@@ -52,7 +53,9 @@ export function BundleCard({ bundle, featured = false }) {
 }
 
 export function CourseCard({ course, groupTitle }) {
-  const href = orderUrl(course.id);
+  const buyHref = checkoutUrl(course.id);
+  const previewHref = getProfessorById(course.id) ? `/aine/${course.id}` : null;
+
   return (
     <article className="flex flex-col rounded-card border border-line bg-white p-5 shadow-card transition hover:shadow-glow">
       <p className="text-xs font-semibold uppercase tracking-wide text-navy-muted">{groupTitle}</p>
@@ -61,9 +64,19 @@ export function CourseCard({ course, groupTitle }) {
         <span className="font-heading text-2xl font-extrabold text-navy">{course.priceEur} €</span>
         {course.compareAtEur && <span className="text-sm text-navy/40 line-through">{course.compareAtEur} €</span>}
       </div>
-      <a href={href} className="mt-4 inline-flex items-center gap-1 font-heading text-sm font-bold text-navy hover:text-gold-dark">
-        Tilaa kurssi <span aria-hidden>→</span>
-      </a>
+      <div className="mt-4 flex flex-col gap-2">
+        {previewHref && (
+          <a
+            href={previewHref}
+            className="inline-flex items-center gap-1 font-heading text-sm font-bold text-gold-dark hover:text-navy"
+          >
+            Kokeile AI-professoria (3 kysymystä) <span aria-hidden>→</span>
+          </a>
+        )}
+        <a href={buyHref} className="inline-flex items-center gap-1 font-heading text-sm font-bold text-navy hover:text-gold-dark">
+          Tilaa kurssi <span aria-hidden>→</span>
+        </a>
+      </div>
     </article>
   );
 }

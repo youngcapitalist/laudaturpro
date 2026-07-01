@@ -66,7 +66,7 @@ export default function KiitosClient() {
           <div className="rounded-card border border-line bg-white p-8 text-center shadow-card">
             <p className="font-heading text-xl font-bold text-navy">Maksun vahvistus epäonnistui</p>
             <p className="mt-2 text-sm text-navy/70">
-              Jos maksu meni läpi, ota yhteyttä info@laudaturpro.fi — tilaus löytyy Stripesstä.
+              Jos maksu meni läpi, ota yhteyttä info@laudaturpro.fi.
             </p>
           </div>
         )}

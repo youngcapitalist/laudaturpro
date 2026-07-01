@@ -3,7 +3,8 @@ import Stripe from "stripe";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ACCESS_UNTIL = "2026-07-15T21:00:00.000Z"; // kevään 2026 yo-kokeiden jälkeen
+/** Syksyn 2026 yo-kokeiden jälkeen */
+const ACCESS_UNTIL = "2026-10-05T21:00:00.000Z";
 
 async function saveAccess(record) {
   const supaUrl = process.env.SUPABASE_URL;

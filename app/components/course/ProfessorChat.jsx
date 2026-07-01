@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { QUICK_ACTIONS } from "../../../lib/professor-prompts";
+import { useFreePreviewQuestions } from "../../../hooks/useFreePreviewQuestions";
+import { checkoutUrl } from "../../config/site";
 
 function parseQuestion(content) {
   const match = content.match(/\[QUESTION\]([\s\S]*?)\[\/QUESTION\]/);
@@ -77,11 +79,16 @@ function MessageBubble({ role, content }) {
   );
 }
 
-export default function ProfessorChat({ professor }) {
+export default function ProfessorChat({ professor, embedded = false, preview = false }) {
+  const freePreview = useFreePreviewQuestions(professor.id);
+  const previewLocked = preview && !freePreview.canAsk;
+
   const [messages, setMessages] = useState([
     {
       role: "assistant",
-      content: `Hei! Olen ${professor.name}, ${professor.role.toLowerCase()}-professorisi. Kysy mitä tahansa tai valitse pikatoiminto alta.`,
+      content: preview
+        ? `Hei! Olen ${professor.role}-aineen AI-professorisi. Kokeile ilmaiseksi — sinulla on ${freePreview.limit} kysymystä tähän aineeseen.`
+        : `Hei! Olen ${professor.role}-aineen AI-professorisi. Pyydä uusia yo-tason harjoitustehtäviä rajattomasti — tai valitse pikatoiminto alta.`,
     },
   ]);
   const [input, setInput] = useState("");
@@ -94,7 +101,7 @@ export default function ProfessorChat({ professor }) {
 
   async function sendMessage(text) {
     const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || previewLocked) return;
 
     const nextMessages = [...messages, { role: "user", content: trimmed }];
     setMessages(nextMessages);
@@ -105,13 +112,30 @@ export default function ProfessorChat({ professor }) {
       const res = await fetch("/api/professor-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subjectId: professor.id, messages: nextMessages }),
+        body: JSON.stringify({
+          subjectId: professor.id,
+          messages: nextMessages,
+          preview,
+        }),
       });
 
       if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({}));
+        if (err.error === "preview_limit") {
+          if (preview) freePreview.increment();
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: "Ilmaiset kysymykset käytetty. Tilaa kurssi tai kirjaudu jos olet jo maksanut.",
+            },
+          ]);
+          return;
+        }
         throw new Error(err.error || "chat_failed");
       }
+
+      if (preview) freePreview.increment();
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -155,30 +179,71 @@ export default function ProfessorChat({ professor }) {
     }
   }
 
+  const userMessages = messages.filter((m) => m.role === "user").length;
+  const showPreviewPaywall = preview && (previewLocked || userMessages >= freePreview.limit);
+
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col bg-slate-wash">
-      <header className="flex items-center gap-3 border-b border-line bg-white px-4 py-3 md:px-6">
-        <Link href="/kurssi" className="text-sm font-semibold text-navy-muted hover:text-navy">
-          ← Kurssit
-        </Link>
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${professor.accent} text-sm font-bold text-white`}
-        >
-          {professor.initials}
+    <div
+      className={`flex flex-col bg-slate-wash ${
+        embedded || preview ? "min-h-[28rem] flex-1" : "h-[calc(100vh-4rem)]"
+      }`}
+    >
+      {!embedded && !preview && (
+        <header className="flex items-center gap-3 border-b border-line bg-white px-4 py-3 md:px-6">
+          <Link href="/kurssi" className="text-sm font-semibold text-navy-muted hover:text-navy">
+            ← Kurssit
+          </Link>
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${professor.accent} text-sm font-bold text-white`}
+          >
+            {professor.initials}
+          </div>
+          <div>
+            <p className="font-heading font-bold text-navy">{professor.role}</p>
+            <p className="text-xs text-navy-muted">AI-professori</p>
+          </div>
+        </header>
+      )}
+
+      {preview && (
+        <div className="border-b border-line bg-white px-4 py-2 text-center text-xs font-semibold text-navy/70">
+          {showPreviewPaywall ? (
+            <span className="text-navy">Ilmaiset kysymykset käytetty</span>
+          ) : (
+            <span>
+              {freePreview.remaining}/{freePreview.limit} ilmaista kysymystä jäljellä
+            </span>
+          )}
         </div>
-        <div>
-          <p className="font-heading font-bold text-navy">{professor.name}</p>
-          <p className="text-xs text-navy-muted">{professor.role}</p>
-        </div>
-      </header>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 py-6 md:px-6">
         <div className="mx-auto max-w-2xl space-y-4">
           {messages.map((m, i) => (
             <MessageBubble key={i} role={m.role} content={m.content} />
           ))}
-          {loading && (
-            <p className="text-sm text-navy-muted">Professori kirjoittaa…</p>
+          {loading && <p className="text-sm text-navy-muted">Professori kirjoittaa…</p>}
+          {showPreviewPaywall && (
+            <div className="rounded-card border border-gold/40 bg-white p-6 text-center shadow-card">
+              <p className="font-heading text-lg font-bold text-navy">Haluatko jatkaa?</p>
+              <p className="mt-2 text-sm text-navy/70">
+                Avaa koko kurssi — 1000+ harjoitustehtävää, rajaton AI-professori ja harkkakoe syksyn yo-kokeeseen.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-3">
+                <a
+                  href={checkoutUrl(professor.id)}
+                  className="inline-flex rounded-pill bg-gold px-5 py-2.5 text-sm font-bold text-navy"
+                >
+                  Tilaa kurssi
+                </a>
+                <Link
+                  href={`/kirjaudu?next=${encodeURIComponent(`/kurssi/${professor.id}`)}`}
+                  className="inline-flex rounded-pill border border-line px-5 py-2.5 text-sm font-bold text-navy"
+                >
+                  Kirjaudu
+                </Link>
+              </div>
+            </div>
           )}
           <div ref={endRef} />
         </div>
@@ -186,41 +251,45 @@ export default function ProfessorChat({ professor }) {
 
       <div className="border-t border-line bg-white px-4 py-4 md:px-6">
         <div className="mx-auto max-w-2xl">
-          <div className="mb-3 flex flex-wrap gap-2">
-            {QUICK_ACTIONS.default.map((a) => (
-              <button
-                key={a.label}
-                type="button"
-                onClick={() => sendMessage(a.prompt)}
-                disabled={loading}
-                className="rounded-pill border border-line bg-slate-wash px-3 py-1.5 text-xs font-semibold text-navy hover:border-navy/30 disabled:opacity-50"
+          {!showPreviewPaywall && (
+            <>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {QUICK_ACTIONS.default.map((a) => (
+                  <button
+                    key={a.label}
+                    type="button"
+                    onClick={() => sendMessage(a.prompt)}
+                    disabled={loading || previewLocked}
+                    className="rounded-pill border border-line bg-slate-wash px-3 py-1.5 text-xs font-semibold text-navy hover:border-navy/30 disabled:opacity-50"
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  sendMessage(input);
+                }}
+                className="flex gap-2"
               >
-                {a.label}
-              </button>
-            ))}
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              sendMessage(input);
-            }}
-            className="flex gap-2"
-          >
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Kirjoita kysymys…"
-              disabled={loading}
-              className="flex-1 rounded-xl border border-line px-4 py-3 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-gold/30"
-            />
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="rounded-xl bg-navy px-5 py-3 font-heading text-sm font-bold text-gold hover:bg-navy-light disabled:opacity-50"
-            >
-              Lähetä
-            </button>
-          </form>
+                <input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="Kirjoita kysymys…"
+                  disabled={loading || previewLocked}
+                  className="flex-1 rounded-xl border border-line px-4 py-3 text-sm focus:border-navy focus:outline-none focus:ring-2 focus:ring-gold/30 disabled:opacity-50"
+                />
+                <button
+                  type="submit"
+                  disabled={loading || previewLocked || !input.trim()}
+                  className="rounded-xl bg-navy px-5 py-3 font-heading text-sm font-bold text-gold hover:bg-navy-light disabled:opacity-50"
+                >
+                  Lähetä
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </div>
     </div>
