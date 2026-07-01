@@ -5,29 +5,52 @@ import { checkoutUrl } from "../config/site";
 import {
   YO_GOALS,
   YO_QUIZ_SUBJECTS,
+  buildPersonalizedOffer,
   quizResult,
-  recommendProduct,
 } from "../../lib/yo-quiz";
+import { LAUDATUR_WTP_QUESTIONS } from "../../lib/wtp";
+import { persistOffer } from "../../lib/wtp-persist";
 
-const STEPS = ["subjects", "goal", "focus", "result"];
+const STEPS = ["subjects", "goal", "focus", "wtp", "result"];
 
 export default function YoQuiz() {
   const [step, setStep] = useState(0);
   const [selectedSubjects, setSelectedSubjects] = useState([]);
   const [goal, setGoal] = useState(null);
   const [focusSubject, setFocusSubject] = useState(null);
+  const [wtpStep, setWtpStep] = useState(0);
+  const [wtpAnswers, setWtpAnswers] = useState({});
+  const [offer, setOffer] = useState(null);
+  const [offerLoading, setOfferLoading] = useState(false);
+  const [offerError, setOfferError] = useState(null);
 
   const phase = STEPS[step];
-  const progress = ((step + 1) / STEPS.length) * 100;
+  const wtpQuestion = LAUDATUR_WTP_QUESTIONS[wtpStep];
+
+  const personalOffer = useMemo(
+    () =>
+      buildPersonalizedOffer({
+        selectedSubjectIds: selectedSubjects,
+        focusSubjectId: focusSubject,
+        goal,
+      }),
+    [selectedSubjects, focusSubject, goal]
+  );
 
   const recommendation = useMemo(() => {
-    if (phase !== "result") return null;
-    const rec = recommendProduct(selectedSubjects, focusSubject);
-    const product = quizResult(rec.productId);
-    const secondary = rec.secondaryId ? quizResult(rec.secondaryId) : null;
-    const also = rec.alsoConsider ? quizResult(rec.alsoConsider) : null;
-    return { ...rec, product, secondary, also };
-  }, [phase, selectedSubjects, focusSubject]);
+    if (phase !== "result" || !personalOffer) return null;
+    const product = quizResult(personalOffer.productId);
+    const also = personalOffer.alsoConsider ? quizResult(personalOffer.alsoConsider) : null;
+    const secondary = personalOffer.secondary?.product
+      ? { ...quizResult(personalOffer.secondary.product.id), labels: personalOffer.secondary.labels }
+      : null;
+    return { ...personalOffer, product, also, secondary, offer };
+  }, [phase, personalOffer, offer]);
+
+  const progress =
+    phase === "wtp"
+      ? ((3 + (wtpStep + 1) / LAUDATUR_WTP_QUESTIONS.length) / STEPS.length) * 100
+      : ((step + 1) / STEPS.length) * 100;
 
   function toggleSubject(id) {
     if (id === "unknown") {
@@ -62,14 +85,58 @@ export default function YoQuiz() {
     setStep(3);
   }
 
+  async function createOffer(nextAnswers) {
+    setOfferLoading(true);
+    setOfferError(null);
+    try {
+      const res = await fetch("/api/offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: personalOffer.productId,
+          wtpAnswers: nextAnswers,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "offer_failed");
+      persistOffer(data);
+      setOffer(data);
+      setStep(4);
+    } catch {
+      setOfferError("Tarjouksen luonti epäonnistui. Yritä uudelleen.");
+    } finally {
+      setOfferLoading(false);
+    }
+  }
+
+  function answerWtp(opt) {
+    if (offerLoading) return;
+    const nextAnswers = { ...wtpAnswers, [wtpQuestion.id]: opt.points };
+    setWtpAnswers(nextAnswers);
+    if (wtpStep + 1 >= LAUDATUR_WTP_QUESTIONS.length) {
+      void createOffer(nextAnswers);
+    } else {
+      setWtpStep((s) => s + 1);
+    }
+  }
+
   function restart() {
     setStep(0);
     setSelectedSubjects([]);
     setGoal(null);
     setFocusSubject(null);
+    setWtpStep(0);
+    setWtpAnswers({});
+    setOffer(null);
+    setOfferError(null);
   }
 
   const focusOptions = selectedSubjects.filter((s) => s !== "unknown");
+  const displayPrice = offer?.priceEur ?? recommendation?.product?.priceEur;
+  const listPrice = offer?.listPriceEur ?? recommendation?.product?.priceEur;
+  const compareAt = recommendation?.compareAtEur;
+  const showOfferDiscount = displayPrice != null && listPrice != null && displayPrice < listPrice;
+  const showCompareAt = compareAt != null && compareAt > (displayPrice ?? 0);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -79,7 +146,9 @@ export default function YoQuiz() {
             <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${progress}%` }} />
           </div>
           <p className="mt-2 text-xs font-semibold text-navy/50">
-            {step + 1} / {STEPS.length}
+            {phase === "wtp"
+              ? `Henkilökohtainen tarjous · ${wtpStep + 1} / ${LAUDATUR_WTP_QUESTIONS.length}`
+              : `${step + 1} / ${STEPS.length}`}
           </p>
         </div>
       )}
@@ -175,44 +244,150 @@ export default function YoQuiz() {
         </div>
       )}
 
+      {phase === "wtp" && wtpQuestion && (
+        <div className="rounded-card border border-line bg-white p-6 shadow-card md:p-8">
+          <span className="inline-flex rounded-pill bg-gold/15 px-3.5 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-navy ring-1 ring-gold/40">
+            Henkilökohtainen tarjous
+          </span>
+          <h2 className="mt-6 font-heading text-xl font-extrabold leading-snug text-navy md:text-2xl">
+            {wtpQuestion.q}
+          </h2>
+          <p className="mt-2 text-sm text-navy/60">
+            Vastaustesi perusteella räätälöimme hinnan — kuinka tärkeää unelmiesi opiskelupaikka on sinulle.
+          </p>
+
+          {offerError && <p className="mt-4 text-sm font-semibold text-red-600">{offerError}</p>}
+
+          <div className="mt-6 space-y-3">
+            {wtpQuestion.options.map((opt) => (
+              <button
+                key={opt.label}
+                type="button"
+                onClick={() => answerWtp(opt)}
+                disabled={offerLoading}
+                className="group flex w-full items-center justify-between gap-4 rounded-xl border border-line bg-white px-5 py-4 text-left transition hover:border-navy hover:bg-mist disabled:opacity-50"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-semibold text-navy">{opt.label}</span>
+                  {opt.hint && (
+                    <span className="mt-1 block text-sm font-normal leading-relaxed text-navy/65">{opt.hint}</span>
+                  )}
+                </span>
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-mist text-navy/40 transition-colors group-hover:bg-navy group-hover:text-gold">
+                  →
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {offerLoading && (
+            <p className="mt-6 text-center text-sm font-semibold text-navy/60">Lasketaan sinulle sopivaa hintaa…</p>
+          )}
+        </div>
+      )}
+
       {phase === "result" && recommendation?.product && (
         <div className="rounded-card border border-gold/40 bg-white p-6 shadow-glow md:p-8">
-          <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Suositus syksyn 2026 kokeisiin</p>
-          {goal && (
-            <p className="mt-2 text-sm text-navy/60">
-              Tavoite: <span className="font-semibold text-navy">{goal.label}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex rounded-pill bg-navy px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-gold">
+              Vain sinulle
+            </span>
+            <span className="text-xs font-semibold text-navy/45">Räätälöity {new Date().toLocaleDateString("fi-FI")}</span>
+          </div>
+
+          <h2 className="mt-5 font-heading text-2xl font-extrabold leading-tight text-navy md:text-3xl">
+            {recommendation.personalTitle}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-navy/75">{recommendation.headline}</p>
+
+          {recommendation.consistencyLine && (
+            <p className="mt-4 rounded-xl border border-line bg-mist px-4 py-3 text-sm text-navy/80">
+              {recommendation.consistencyLine}
             </p>
           )}
-          <h2 className="mt-4 font-heading text-2xl font-extrabold text-navy">{recommendation.product.name}</h2>
-          {recommendation.product.tagline && (
-            <p className="mt-1 text-sm text-navy/65">{recommendation.product.tagline}</p>
-          )}
-          <p className="mt-4 font-heading text-4xl font-extrabold text-navy">{recommendation.product.priceEur} €</p>
-          <p className="mt-4 text-sm leading-relaxed text-navy/75">{recommendation.reason}</p>
+
+          <div className="mt-6">
+            <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Pakettiin kuuluu juuri sinun valintasi</p>
+            <ul className="mt-3 space-y-2">
+              {recommendation.components.map((item) => (
+                <li
+                  key={item.label}
+                  className="flex items-start gap-3 rounded-xl border border-line bg-white px-4 py-3"
+                >
+                  <span className="mt-0.5 text-gold" aria-hidden>
+                    ✓
+                  </span>
+                  <span>
+                    <span className="block font-semibold text-navy">{item.label}</span>
+                    <span className="text-xs text-navy/55">{item.detail}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="mt-8 rounded-xl border border-gold/30 bg-navy/5 p-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Henkilökohtainen hinta</p>
+            <div className="mt-3 flex flex-wrap items-baseline gap-3">
+              <p className="font-heading text-4xl font-extrabold text-navy">{displayPrice} €</p>
+              {showOfferDiscount && (
+                <p className="text-lg font-semibold text-navy/40 line-through">{listPrice} €</p>
+              )}
+              {showCompareAt && compareAt !== listPrice && (
+                <p className="text-sm font-semibold text-navy/45 line-through">{compareAt} € erikseen</p>
+              )}
+            </div>
+            {offer && (
+              <p className="mt-2 text-sm font-semibold text-gold-dark">
+                Hintasi perustuu vastauksiisi — ei yleinen listahinta.
+              </p>
+            )}
+            {recommendation.savingsVsIndividual != null && recommendation.savingsVsIndividual > 0 && (
+              <p className="mt-2 text-sm font-semibold text-navy">
+                Säästät {recommendation.savingsVsIndividual} € verrattuna erillisiin kursseihin.
+              </p>
+            )}
+          </div>
+
+          <p className="mt-5 text-sm leading-relaxed text-navy/75">{recommendation.reason}</p>
 
           <a
-            href={checkoutUrl(recommendation.productId, { utm_source: "laudaturpro", utm_medium: "quiz" })}
-            className="mt-8 flex w-full items-center justify-center gap-2 rounded-pill bg-gold px-6 py-3.5 font-heading text-sm font-bold text-navy hover:bg-gold-light"
+            href={
+              offer?.checkoutUrl ||
+              checkoutUrl(recommendation.productId, { utm_source: "laudaturpro", utm_medium: "quiz" })
+            }
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-pill bg-gold px-6 py-3.5 font-heading text-sm font-bold text-navy hover:bg-gold-light"
           >
-            Siirry kassalle — {recommendation.product.priceEur} €
+            Lunasta tarjouksesi — {displayPrice} €
           </a>
+          <p className="mt-2 text-center text-xs text-navy/45">
+            Tarjous sidottu valintoihisi — voimassa 7 päivää.
+          </p>
 
           {recommendation.also && (
-            <p className="mt-6 text-center text-sm text-navy/60">
-              Kirjoitat paljon aineita?{" "}
-              <a href={checkoutUrl(recommendation.also.productId)} className="font-bold text-navy underline">
-                {recommendation.also.name} — {recommendation.also.priceEur} €
-              </a>
-            </p>
+            <div className="mt-8 rounded-xl border border-dashed border-line bg-mist/50 p-4 text-center">
+              <p className="text-sm text-navy/65">
+                Kirjoitat enemmän aineita?{" "}
+                <a href={checkoutUrl(recommendation.also.productId)} className="font-bold text-navy underline">
+                  {recommendation.also.name}
+                </a>{" "}
+                kattaa laajemmin — {recommendation.also.priceEur} €
+              </p>
+            </div>
           )}
 
           {recommendation.secondary && (
-            <p className="mt-4 text-center text-sm text-navy/60">
-              Myös toinen valintasi:{" "}
-              <a href={checkoutUrl(recommendation.secondary.productId)} className="font-bold text-navy underline">
-                {recommendation.secondary.name}
-              </a>
-            </p>
+            <div className="mt-4 rounded-xl border border-dashed border-line bg-mist/50 p-4 text-center">
+              <p className="text-sm text-navy/65">
+                Toinen valintasi ({recommendation.secondary.labels?.join(", ")}):{" "}
+                <a
+                  href={checkoutUrl(recommendation.secondary.productId)}
+                  className="font-bold text-navy underline"
+                >
+                  {recommendation.secondary.name}
+                </a>
+              </p>
+            </div>
           )}
 
           <button type="button" onClick={restart} className="mt-6 w-full text-sm font-semibold text-navy/50 hover:text-navy">

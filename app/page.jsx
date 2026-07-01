@@ -8,7 +8,7 @@ import { PLATFORM_FEATURES, PLATFORM_STATS, PLATFORM_STEPS } from "../lib/platfo
 const FAQ = [
   {
     q: "Kenelle LaudaturPro sopii?",
-    a: "Kurssit on suunnattu lukiolaisille ja uusijoille, jotka haluavat parantaa yo-arvosanoja todistusvalintaa tai seuraavaa hakukautta varten.",
+    a: "Kurssit on suunnattu lukiolaisille ja uusijoille, jotka haluavat parantaa yo-arvosanoja syksyn 2026 kokeisiin.",
   },
   {
     q: "Miten LaudaturPro eroaa tavallisesta harjoittelusta?",
@@ -20,7 +20,7 @@ const FAQ = [
   },
   {
     q: "Voinko kokeilla ennen ostoa?",
-    a: "Kyllä — 3 ilmaista kysymystä AI-professorille per aine osoitteessa /aine/... Tai tee /testi ja saat kurssisuosituksen.",
+    a: "Kyllä — 3 ilmaista kysymystä AI-professorille per aine osoitteessa /aine/... Tai tee /testi ja saat henkilökohtaisen kurssitarjouksen hinnan mukaan.",
   },
   {
     q: "Mitä eroa on Laudatur Prolla ja yksittäisillä kursseilla?",
@@ -31,8 +31,8 @@ const FAQ = [
     a: "Pääset opiskelemaan heti tilauksen jälkeen. Sisältö on avoinna syksyn 2026 yo-kokeisiin asti.",
   },
   {
-    q: "Auttaako tämä todistusvalinnassa?",
-    a: "Kyllä. Korkeammat yo-arvosanat nostavat todistuspisteitä suoraan. Käytä Pääsykoe.fi:n todistusvalintalaskuria nähdäksesi, paljonko parannus vaikuttaa hakukohteisiisi.",
+    q: "Mitä saan tilauksen jälkeen?",
+    a: "Heti pääsyn kurssialustalle: teoria osa-alueittain, rajaton AI-professori jokaisessa aineessa ja harkkakoe lähempänä yo-koetta. Kirjaudu sähköpostilinkillä ja aloita valitsemastasi aineesta.",
   },
 ];
 
@@ -46,7 +46,7 @@ export default function HomePage() {
             Laudatur Pro · syksy 2026
           </span>
           <h1 className="mt-5 max-w-3xl font-heading text-4xl font-extrabold leading-[1.08] tracking-tight text-navy md:text-5xl">
-            Kaikki yo-aineet samassa paikassa — nosta arvosanoja ja todistuspisteitä
+            Kaikki yo-aineet samassa paikassa — nosta arvosanoja syksyn 2026 kokeisiin
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-navy/85">
             Yli 1000 harjoitustehtävää kaikissa aineissa — AI-professori luo uusia yo-tason tehtäviä rajattomasti.
@@ -99,7 +99,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-site px-6 md:px-8">
           <h2 className="font-heading text-3xl font-extrabold text-navy">Näin se toimii</h2>
           <p className="mt-3 max-w-2xl text-navy/75">
-            Selkeä polku kohti tavoitearvosanaa — aloita kokeilemalla tai testillä jo tänään.
+            Selkeä polku kohti tavoitearvosanaa — aloita kokeilemalla tai testillä, joka räätälöi hinnan sinulle.
           </p>
           <ol className="mt-10 grid gap-4 md:grid-cols-5">
             {PLATFORM_STEPS.map((s) => (
@@ -179,21 +179,6 @@ export default function HomePage() {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="border-y border-line bg-navy py-14 text-white md:py-16">
-        <div className="mx-auto max-w-site px-6 text-center md:px-8">
-          <h2 className="font-heading text-2xl font-extrabold md:text-3xl">Todistus ei riitä vielä?</h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-white/80">
-            Laske pisteet ilmaisella laskurilla ja palaa parantamaan juuri ne aineet, jotka painavat eniten.
-          </p>
-          <a
-            href="https://paasykoe.fi/todistusvalinta/laskuri?utm_source=laudaturpro&utm_medium=cta"
-            className="mt-6 inline-flex rounded-pill bg-gold px-6 py-3 font-heading text-sm font-bold text-navy hover:bg-gold-light"
-          >
-            Avaa todistusvalintalaskuri
-          </a>
         </div>
       </section>
 

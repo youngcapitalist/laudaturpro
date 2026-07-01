@@ -7,6 +7,11 @@ export function checkoutUrl(productId, params = {}) {
   return `${url.pathname}${url.search}`;
 }
 
+/** Client-side checkout path with optional WTP offer token. */
+export function checkoutPath(productId, params = {}) {
+  return checkoutUrl(productId, params);
+}
+
 /** @deprecated use checkoutUrl */
 export function orderUrl(productId, params = {}) {
   return checkoutUrl(productId, params);

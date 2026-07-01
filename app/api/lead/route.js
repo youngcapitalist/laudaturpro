@@ -21,12 +21,18 @@ export async function POST(request) {
       ? Math.round(data.priceEur)
       : null;
 
+  const wtpScore =
+    typeof data?.wtpScore === "number" && data.wtpScore >= 0 && data.wtpScore <= 1000
+      ? Math.round(data.wtpScore)
+      : null;
+
   const lead = {
     email,
     name: typeof data?.name === "string" ? data.name.trim() || null : null,
     productId,
     productName,
     priceEur,
+    wtpScore,
     source: "laudaturpro",
     utm: data?.utm && typeof data.utm === "object" ? data.utm : null,
     receivedAt: new Date().toISOString(),
@@ -51,6 +57,7 @@ export async function POST(request) {
           preferred_field: productName,
           pain_key: productId,
           offered_price_eur: priceEur,
+          wtp_score: wtpScore,
           source: lead.source,
         }),
       });

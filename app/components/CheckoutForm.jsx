@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { BUNDLES, getProduct, SUBJECT_GROUPS } from "../../lib/products";
 import { checkoutUrl } from "../config/site";
+import { loadOffer } from "../../lib/wtp-persist";
 
 function CheckoutRedirect({ productId }) {
   const searchParams = useSearchParams();
@@ -11,7 +12,11 @@ function CheckoutRedirect({ productId }) {
   useEffect(() => {
     const params = new URLSearchParams();
     params.set("paketti", productId);
-    for (const key of ["utm_source", "utm_medium", "utm_campaign"]) {
+    const stored = loadOffer();
+    if (stored?.token && stored.productId === productId) {
+      params.set("offer", stored.token);
+    }
+    for (const key of ["utm_source", "utm_medium", "utm_campaign", "offer"]) {
       const v = searchParams.get(key);
       if (v) params.set(key, v);
     }

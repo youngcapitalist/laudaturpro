@@ -14,10 +14,12 @@ function parseUtm(searchParams) {
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const productId = searchParams.get("paketti") || searchParams.get("productId") || "";
+  const offerToken = searchParams.get("offer") || "";
 
   const result = await createCheckoutSession({
     request,
     productId,
+    offerToken: offerToken || null,
     utm: parseUtm(searchParams),
   });
 
@@ -40,6 +42,7 @@ export async function POST(request) {
   const email = typeof data?.email === "string" ? data.email.trim() : "";
   const name = typeof data?.name === "string" ? data.name.trim() : "";
   const utm = data?.utm && typeof data.utm === "object" ? data.utm : {};
+  const offerToken = typeof data?.offerToken === "string" ? data.offerToken : null;
 
   const result = await createCheckoutSession({
     request,
@@ -47,6 +50,7 @@ export async function POST(request) {
     email: email || null,
     name: name || null,
     utm,
+    offerToken,
   });
 
   if (result.error) {

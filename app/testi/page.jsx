@@ -4,7 +4,7 @@ import YoQuiz from "./YoQuiz";
 export const metadata = {
   title: "Mitä kirjoitat syksyllä? — LaudaturPro.fi",
   description:
-    "Ilmainen testi: kerro mitä aiot kirjoittaa syksyn 2026 yo-kokeissa ja saat henkilökohtaisen kurssisuosituksen.",
+    "Ilmainen testi: kerro mitä aiot kirjoittaa syksyn 2026 yo-kokeissa ja saat henkilökohtaisen kurssitarjouksen.",
 };
 
 export default function TestiPage() {

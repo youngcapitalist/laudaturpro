@@ -72,45 +72,45 @@ export function LaudaturFooter() {
         <div>
           <LaudaturLogo />
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-white/70">
-            Yo-valmennus kaikissa aineissa — paranna arvosanoja ja nosta todistusvalinnan pisteitä.
+            Yo-valmennus kaikissa aineissa — teoria, AI-professori ja harkkakokeet syksyn 2026 kokeisiin.
           </p>
         </div>
         <div>
-          <p className="font-heading text-sm font-bold uppercase tracking-wider text-gold">Kurssit</p>
+          <p className="font-heading text-sm font-bold uppercase tracking-wider text-gold">Sivut</p>
           <ul className="mt-4 space-y-2 text-sm text-white/75">
             <li>
-              <a href="/#paketit" className="hover:text-gold">
-                Laudatur Pro
+              <a href="/testi" className="hover:text-gold">
+                Testi
+              </a>
+            </li>
+            <li>
+              <a href="/#professorit" className="hover:text-gold">
+                AI-professorit
               </a>
             </li>
             <li>
               <a href="/#kurssit" className="hover:text-gold">
-                Yksittäiset aineet
+                Kurssit
               </a>
             </li>
             <li>
-              <a href="/tilaa" className="hover:text-gold">
-                Tilaus
+              <a href="/#faq" className="hover:text-gold">
+                Usein kysyttyä
               </a>
             </li>
           </ul>
         </div>
         <div>
-          <p className="font-heading text-sm font-bold uppercase tracking-wider text-gold">Linkit</p>
+          <p className="font-heading text-sm font-bold uppercase tracking-wider text-gold">Yhteystiedot</p>
           <ul className="mt-4 space-y-2 text-sm text-white/75">
             <li>
-              <a href="https://paasykoe.fi/todistusvalinta/laskuri" className="hover:text-gold">
-                Todistusvalintalaskuri
-              </a>
-            </li>
-            <li>
-              <a href="https://paasykoe.fi" className="hover:text-gold">
-                Pääsykoe.fi
-              </a>
-            </li>
-            <li>
               <a href="mailto:info@laudaturpro.fi" className="hover:text-gold">
-                Yhteystiedot
+                info@laudaturpro.fi
+              </a>
+            </li>
+            <li>
+              <a href="/tilaa" className="hover:text-gold">
+                Tilaus
               </a>
             </li>
           </ul>
