@@ -54,7 +54,10 @@ export default function KiitosClient() {
                 <>Lähetämme kirjautumisohjeet sähköpostiisi pian.</>
               )}
             </p>
-            <a href="/" className="mt-8 inline-flex rounded-pill bg-navy px-6 py-3 font-heading text-sm font-bold text-gold">
+            <a href="/kirjaudu" className="mt-8 inline-flex rounded-pill bg-gold px-6 py-3 font-heading text-sm font-bold text-navy">
+              Kirjaudu kurssille
+            </a>
+            <a href="/" className="mt-4 block text-sm text-navy/50 hover:underline">
               Takaisin etusivulle
             </a>
           </div>

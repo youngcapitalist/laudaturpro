@@ -30,6 +30,9 @@ export function LaudaturNav() {
               {item.label}
             </a>
           ))}
+          <a href="/kirjaudu" className="text-sm font-semibold text-gold hover:text-gold-light">
+            Kirjaudu
+          </a>
         </nav>
         <a
           href="/tilaa?paketti=laudatur-pro"
