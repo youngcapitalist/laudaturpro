@@ -21,7 +21,7 @@ export default function TilaaPage({ searchParams }) {
           <h1 className="mt-2 font-heading text-3xl font-extrabold text-navy">Laske sinulle sopiva hinta</h1>
           <p className="mt-3 text-sm leading-relaxed text-navy/70">
             Valitse tuote suoraan — tai tee ensin{" "}
-            <a href="/testi" className="font-semibold text-navy underline">
+            <a href="/aloita" className="font-semibold text-navy underline">
               ilmainen testi
             </a>{" "}
             ja saat henkilökohtaisen hinnan valintojesi perusteella.

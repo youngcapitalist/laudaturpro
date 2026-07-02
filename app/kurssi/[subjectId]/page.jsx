@@ -43,7 +43,16 @@ export default async function SubjectTheoryPage({ params }) {
         </section>
       )}
 
-      <section className="mt-8 grid gap-4 sm:grid-cols-2">
+      <section className="mt-8 grid gap-4 sm:grid-cols-3">
+        <Link
+          href={`/kurssi/${params.subjectId}/harjoittele`}
+          className="rounded-card border border-line bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-glow"
+        >
+          <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Harjoittelu</p>
+          <p className="mt-2 font-heading font-bold text-navy">Yo-tehtäviä selittävällä palautteella</p>
+          <p className="mt-1 text-sm text-navy/65">Vastaa, näe heti miksi ratkaisu on oikea — väärät siirtyvät kertausjonoon.</p>
+          <p className="mt-3 text-sm font-bold text-navy">Aloita harjoittelu →</p>
+        </Link>
         <Link
           href={`/kurssi/${params.subjectId}/chat`}
           className="rounded-card border border-line bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:shadow-glow"
@@ -59,8 +68,8 @@ export default async function SubjectTheoryPage({ params }) {
         >
           <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Harkkakoe</p>
           <p className="mt-2 font-heading font-bold text-navy">Koesimulaatio syksyn yo-kokeeseen</p>
-          <p className="mt-1 text-sm text-navy/65">Avautuu lähempänä yo-koetta — valmistaudu teorialla ja AI-professorilla nyt.</p>
-          <p className="mt-3 text-sm font-bold text-navy">Katso aikataulu →</p>
+          <p className="mt-1 text-sm text-navy/65">Yo-tyyliset tehtävät aikarajoineen — harjoittele koe ennen varsinaista päivää.</p>
+          <p className="mt-3 text-sm font-bold text-navy">Avaa harkkakoe →</p>
         </Link>
       </section>
     </main>

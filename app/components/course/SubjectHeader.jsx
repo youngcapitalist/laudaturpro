@@ -9,6 +9,7 @@ export function SubjectHeader({ subjectId, professor }) {
 
   const tabs = [
     { href: base, label: "Teoria", active: pathname === base },
+    { href: `${base}/harjoittele`, label: "Harjoittelu", active: pathname.endsWith("/harjoittele") },
     { href: `${base}/chat`, label: "AI-professori", active: pathname.endsWith("/chat") },
     { href: `${base}/harkkakoe`, label: "Harkkakoe", active: pathname.endsWith("/harkkakoe") },
   ];

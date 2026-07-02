@@ -21,7 +21,7 @@ const FAQ = [
   },
   {
     q: "Voinko kokeilla ennen ostoa?",
-    a: "Kyllä — 3 ilmaista kysymystä AI-professorille per aine osoitteessa /aine/... Tai tee /testi ja saat henkilökohtaisen kurssitarjouksen hinnan mukaan.",
+    a: "Kyllä — 3 ilmaista kysymystä AI-professorille per aine osoitteessa /aine/... Tai tee /aloita ja saat henkilökohtaisen kurssitarjouksen hinnan mukaan.",
   },
   {
     q: "Mitä eroa on Laudatur Prolla ja yksittäisillä kursseilla?",
@@ -55,7 +55,7 @@ export default function HomePage() {
           </p>
           <div className="mt-10 flex flex-wrap gap-4">
             <a
-              href="/testi"
+              href="/aloita"
               className="inline-flex rounded-pill bg-navy px-6 py-3.5 font-heading text-sm font-bold text-gold hover:bg-navy-light"
             >
               Laske minulle hinta — ilmainen testi
@@ -198,7 +198,7 @@ export default function HomePage() {
             Valitse aineet, tavoite ja tärkeys — rakennamme paketin ja hinnan juuri sinulle. Ei sitoumusta, ei piilokuluja.
           </p>
           <a
-            href="/testi"
+            href="/aloita"
             className="mt-8 inline-flex rounded-pill bg-gold px-8 py-3.5 font-heading text-sm font-bold text-navy hover:opacity-90"
           >
             Aloita ilmainen testi

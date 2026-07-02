@@ -3,9 +3,16 @@ import { updateSession } from "./lib/supabase/middleware";
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+
+  if (pathname === "/" && request.nextUrl.searchParams.get("utm_source") === "paasykoe") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/aloita";
+    return NextResponse.redirect(url);
+  }
+
   const response = await updateSession(request);
 
-  const needsAuth = pathname.startsWith("/kurssi") || pathname === "/profiili";
+  const needsAuth = pathname.startsWith("/kurssi") || pathname === "/profiili" || pathname.startsWith("/admin");
   if (!needsAuth) return response;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -36,5 +43,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/kurssi/:path*", "/profiili"],
+  matcher: ["/", "/kurssi/:path*", "/profiili", "/admin/:path*"],
 };

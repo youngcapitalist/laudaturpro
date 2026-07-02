@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { checkoutUrl } from "../config/site";
 import {
+  YO_EXAM_GRADES,
   YO_GOALS,
+  YO_GRADE_LEVELS,
   YO_QUIZ_SUBJECTS,
   buildPersonalizedOffer,
   quizResult,
@@ -11,9 +13,14 @@ import {
 import { YO_CHECKUP_STEPS } from "../../lib/yo-checkup";
 import { LAUDATUR_WTP_QUESTIONS } from "../../lib/wtp";
 import { persistOffer } from "../../lib/wtp-persist";
+import { buildPlanVisual } from "../../lib/yo-plan-visual";
+import YoPlanDashboard, { YoPlanOfferCard } from "../components/YoPlanDashboard";
+import YoQuizAnalyzing from "../components/YoQuizAnalyzing";
 
 const STEPS = [
   "subjects",
+  "grade",
+  "retake",
   "checkup_timeline",
   "checkup_hours",
   "checkup_feeling",
@@ -25,6 +32,8 @@ const STEPS = [
   "result",
 ];
 
+const stepIndex = (phase) => STEPS.indexOf(phase);
+
 const CHECKUP_STEP_MAP = {
   checkup_timeline: 0,
   checkup_hours: 1,
@@ -32,9 +41,11 @@ const CHECKUP_STEP_MAP = {
   checkup_blocker: 3,
 };
 
-export default function YoQuiz() {
+export default function YoQuiz({ quizFirst = false }) {
   const [step, setStep] = useState(0);
   const [selectedSubjects, setSelectedSubjects] = useState([]);
+  const [gradeLevel, setGradeLevel] = useState(null);
+  const [retakeGrades, setRetakeGrades] = useState({});
   const [checkupAnswers, setCheckupAnswers] = useState({});
   const [goal, setGoal] = useState(null);
   const [focusSubject, setFocusSubject] = useState(null);
@@ -45,6 +56,14 @@ export default function YoQuiz() {
   const [offerLoading, setOfferLoading] = useState(false);
   const [offerError, setOfferError] = useState(null);
   const [bundleSubjectIds, setBundleSubjectIds] = useState(null);
+  const [destination, setDestination] = useState(null);
+  const [resultRevealed, setResultRevealed] = useState(false);
+  const [offerEmailSent, setOfferEmailSent] = useState(false);
+
+  useEffect(() => {
+    const kohde = new URLSearchParams(window.location.search).get("kohde")?.trim();
+    if (kohde) setDestination(kohde);
+  }, []);
 
   const phase = STEPS[step];
   const wtpQuestion = LAUDATUR_WTP_QUESTIONS[wtpStep];
@@ -59,8 +78,10 @@ export default function YoQuiz() {
         goal,
         bundleSubjectIds,
         checkupAnswers,
+        gradeLevel,
+        retakeGrades,
       }),
-    [selectedSubjects, focusSubject, goal, bundleSubjectIds, checkupAnswers]
+    [selectedSubjects, focusSubject, goal, bundleSubjectIds, checkupAnswers, gradeLevel, retakeGrades]
   );
 
   const recommendation = useMemo(() => {
@@ -72,7 +93,7 @@ export default function YoQuiz() {
 
   const progress =
     phase === "wtp"
-      ? ((7 + (wtpStep + 1) / LAUDATUR_WTP_QUESTIONS.length) / STEPS.length) * 100
+      ? ((stepIndex("wtp") + (wtpStep + 1) / LAUDATUR_WTP_QUESTIONS.length) / STEPS.length) * 100
       : phase === "email"
         ? ((STEPS.length - 1) / STEPS.length) * 100
         : ((step + 1) / STEPS.length) * 100;
@@ -84,6 +105,25 @@ export default function YoQuiz() {
   const compareAt = recommendation?.compareAtEur;
   const showOfferDiscount = displayPrice != null && listPrice != null && displayPrice < listPrice;
   const showCompareAt = compareAt != null && compareAt > (displayPrice ?? 0);
+
+  const planVisual = useMemo(() => {
+    if (!personalOffer) return null;
+    return buildPlanVisual({
+      checkupAnswers,
+      goal,
+      focusSubjectId: focusSubject,
+      coveredIds: personalOffer.coveredIds,
+      coveredLabels: personalOffer.coveredLabels,
+      destination,
+      displayPrice,
+      listPrice,
+      gradeLevelId: gradeLevel?.id ?? null,
+    });
+  }, [personalOffer, checkupAnswers, goal, focusSubject, destination, displayPrice, listPrice, gradeLevel]);
+
+  useEffect(() => {
+    if (phase !== "result") setResultRevealed(false);
+  }, [phase]);
 
   function toggleSubject(id) {
     if (id === "unknown") {
@@ -99,7 +139,23 @@ export default function YoQuiz() {
 
   function continueFromSubjects() {
     if (selectedSubjects.length === 0) return;
-    setStep(1);
+    setStep(stepIndex("grade"));
+  }
+
+  function pickGradeLevel(level) {
+    setGradeLevel(level);
+    // Korotusaskel vain, jos on valittu konkreettisia aineita.
+    const real = selectedSubjects.filter((s) => s !== "unknown");
+    setStep(real.length > 0 ? stepIndex("retake") : stepIndex("checkup_timeline"));
+  }
+
+  function toggleRetakeGrade(subjectId, grade) {
+    setRetakeGrades((prev) => {
+      const next = { ...prev };
+      if (next[subjectId] === grade) delete next[subjectId];
+      else next[subjectId] = grade;
+      return next;
+    });
   }
 
   function answerCheckup(optionId) {
@@ -114,15 +170,15 @@ export default function YoQuiz() {
     const real = selectedSubjects.filter((s) => s !== "unknown");
     if (real.length <= 1) {
       setFocusSubject(real[0] || null);
-      setStep(7);
+      setStep(stepIndex("wtp"));
     } else {
-      setStep(6);
+      setStep(stepIndex("focus"));
     }
   }
 
   function pickFocus(id) {
     setFocusSubject(id);
-    setStep(7);
+    setStep(stepIndex("wtp"));
   }
 
   const fetchOffer = useCallback(
@@ -145,40 +201,47 @@ export default function YoQuiz() {
     [wtpAnswers]
   );
 
-  async function finalizeWithEmail(e) {
+  function finalizeWithEmail(e) {
     e?.preventDefault?.();
     if (!emailValid || offerLoading || !personalOffer) return;
     setOfferLoading(true);
     setOfferError(null);
-    try {
-      const activeSubjects =
-        bundleSubjectIds ?? personalOffer.coveredIds ?? selectedSubjects.filter((s) => s !== "unknown");
-      const offerData = await fetchOffer(personalOffer.productId, activeSubjects);
 
-      const leadRes = await fetch("/api/lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          productId: offerData.productId,
-          productName: offerData.productName,
-          personalTitle: personalOffer.personalTitle,
-          priceEur: offerData.priceEur,
-          listPriceEur: offerData.listPriceEur,
-          wtpScore: offerData.wtpScore,
-          checkoutUrl: offerData.checkoutUrl,
-          selectedLabels: personalOffer.selectedLabels,
-          goalLabel: personalOffer.goalLabel,
-        }),
-      });
-      if (!leadRes.ok) throw new Error("lead_failed");
+    // Analyysianimaatio käyntiin heti — tarjous ja liidi haetaan sen aikana.
+    setStep(stepIndex("result"));
 
-      setStep(9);
-    } catch {
-      setOfferError("Lähetys ei onnistunut. Tarkista sähköposti ja yritä uudelleen.");
-    } finally {
-      setOfferLoading(false);
-    }
+    (async () => {
+      try {
+        const activeSubjects =
+          bundleSubjectIds ?? personalOffer.coveredIds ?? selectedSubjects.filter((s) => s !== "unknown");
+        const offerData = await fetchOffer(personalOffer.productId, activeSubjects);
+
+        const leadRes = await fetch("/api/lead", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: email.trim(),
+            productId: offerData.productId,
+            productName: offerData.productName,
+            personalTitle: personalOffer.personalTitle,
+            priceEur: offerData.priceEur,
+            listPriceEur: offerData.listPriceEur,
+            wtpScore: offerData.wtpScore,
+            checkoutUrl: offerData.checkoutUrl,
+            selectedLabels: personalOffer.selectedLabels,
+            retakeLabels: personalOffer.retakeLabels,
+            goalLabel: personalOffer.goalLabel,
+            gradeLabel: gradeLevel && gradeLevel.id !== "unknown" ? gradeLevel.label : null,
+          }),
+        });
+        const leadData = await leadRes.json().catch(() => ({}));
+        setOfferEmailSent(leadRes.ok && !!leadData.emailSent);
+      } catch {
+        // Tulossivu toimii listahinnalla ja vakiolinkillä, jos haku epäonnistuu.
+      } finally {
+        setOfferLoading(false);
+      }
+    })();
   }
 
   async function removeFromBundle(subjectId) {
@@ -217,7 +280,7 @@ export default function YoQuiz() {
     const nextAnswers = { ...wtpAnswers, [wtpQuestion.id]: opt.points };
     setWtpAnswers(nextAnswers);
     if (wtpStep + 1 >= LAUDATUR_WTP_QUESTIONS.length) {
-      setStep(8);
+      setStep(stepIndex("email"));
     } else {
       setWtpStep((s) => s + 1);
     }
@@ -226,6 +289,8 @@ export default function YoQuiz() {
   function restart() {
     setStep(0);
     setSelectedSubjects([]);
+    setGradeLevel(null);
+    setRetakeGrades({});
     setCheckupAnswers({});
     setGoal(null);
     setFocusSubject(null);
@@ -235,10 +300,12 @@ export default function YoQuiz() {
     setOffer(null);
     setOfferError(null);
     setBundleSubjectIds(null);
+    setResultRevealed(false);
+    setOfferEmailSent(false);
   }
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className={`mx-auto ${phase === "result" ? "max-w-3xl" : "max-w-xl"}`}>
       {phase !== "result" && (
         <div className="mb-8">
           <div className="h-1.5 overflow-hidden rounded-full bg-line">
@@ -256,15 +323,20 @@ export default function YoQuiz() {
 
       {phase === "subjects" && (
         <div className="rounded-card border border-line bg-white p-6 shadow-card md:p-8">
-          <span className="inline-flex rounded-pill bg-navy/5 px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-navy/60">
-            Yo-tarkastus · aloitus
-          </span>
-          <h1 className="mt-4 font-heading text-2xl font-extrabold text-navy md:text-3xl">
-            Mitä aiot kirjoittaa syksyn 2026 yo-kokeissa?
+          {!quizFirst && (
+            <span className="inline-flex rounded-pill bg-navy/5 px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-navy/60">
+              Yo-tarkastus · aloitus
+            </span>
+          )}
+          <h1 className={`font-heading text-2xl font-extrabold text-navy md:text-3xl ${quizFirst ? "" : "mt-4"}`}>
+            {quizFirst
+              ? "Mitä ainetta kirjoitat syksyn 2026 yo-kokeissa?"
+              : "Mitä aiot kirjoittaa syksyn 2026 yo-kokeissa?"}
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-navy/70">
-            Aloitamme kartoittamalla aineet. Tämä on ilmainen tarkastus, ei myyntipuhelu — saat
-            henkilökohtaisen suunnitelman vastaustesi perusteella.
+            {quizFirst
+              ? "Valitse aineet alle — saat heti henkilökohtaisen suunnitelman. Kestää noin 3 minuuttia."
+              : "Aloitamme kartoittamalla aineet. Tämä on ilmainen tarkastus, ei myyntipuhelu — saat henkilökohtaisen suunnitelman vastaustesi perusteella."}
           </p>
           <ul className="mt-6 space-y-2">
             {YO_QUIZ_SUBJECTS.map((s) => {
@@ -303,7 +375,95 @@ export default function YoQuiz() {
             onClick={continueFromSubjects}
             className="mt-8 w-full rounded-pill bg-navy py-3.5 font-heading text-sm font-bold text-gold disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Jatka tarkastusta
+            {quizFirst ? "Jatka" : "Jatka tarkastusta"}
+          </button>
+        </div>
+      )}
+
+      {phase === "grade" && (
+        <div className="rounded-card border border-line bg-white p-6 shadow-card md:p-8">
+          <span className="inline-flex rounded-pill bg-navy/5 px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-navy/60">
+            Lähtötaso
+          </span>
+          <h2 className="mt-4 font-heading text-2xl font-extrabold text-navy">
+            {focusOptions.length === 1
+              ? `Mikä on lukiokurssiesi keskiarvo aineessa ${
+                  YO_QUIZ_SUBJECTS.find((s) => s.id === focusOptions[0])?.label || focusOptions[0]
+                }?`
+              : "Mikä on lukiokurssiesi keskiarvo kirjoitettavissa aineissa?"}
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-navy/70">
+            Arvio riittää — sen avulla suunnitelma mitoitetaan oikealle lähtötasolle.
+          </p>
+          <ul className="mt-6 space-y-2">
+            {YO_GRADE_LEVELS.map((level) => (
+              <li key={level.id}>
+                <button
+                  type="button"
+                  onClick={() => pickGradeLevel(level)}
+                  className="w-full rounded-xl border border-line px-4 py-3 text-left transition hover:border-navy hover:bg-mist"
+                >
+                  <span className="block text-sm font-semibold text-navy">{level.label}</span>
+                  {level.hint && (
+                    <span className="mt-1 block text-xs leading-relaxed text-navy/60">{level.hint}</span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {phase === "retake" && (
+        <div className="rounded-card border border-line bg-white p-6 shadow-card md:p-8">
+          <span className="inline-flex rounded-pill bg-navy/5 px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-navy/60">
+            Korotukset
+          </span>
+          <h2 className="mt-4 font-heading text-2xl font-extrabold text-navy">
+            Oletko kirjoittanut jonkin aineistasi jo aiemmin?
+          </h2>
+          <p className="mt-3 text-sm leading-relaxed text-navy/70">
+            Jos kirjoitat ainetta uudelleen, valitse siihen saamasi arvosana — suunnittelemme korotuksen juuri
+            siitä lähtötasosta. Jos kirjoitat aineen ensimmäistä kertaa, jätä rivi tyhjäksi.
+          </p>
+          <ul className="mt-6 space-y-3">
+            {focusOptions.map((id) => {
+              const label = YO_QUIZ_SUBJECTS.find((s) => s.id === id)?.label || id;
+              const picked = retakeGrades[id];
+              return (
+                <li key={id} className={`rounded-xl border px-4 py-3 transition ${picked ? "border-navy bg-mist/60" : "border-line"}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-navy">{label}</span>
+                    <span className="text-xs font-semibold text-navy/50">
+                      {picked ? `Korotat arvosanaa ${picked}` : "Kirjoitan ensimmäistä kertaa"}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={`Aiempi arvosana: ${label}`}>
+                    {YO_EXAM_GRADES.map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => toggleRetakeGrade(id, g)}
+                        className={`min-w-[2.35rem] rounded-md border px-2 py-1.5 font-heading text-sm font-bold transition-colors ${
+                          picked === g
+                            ? "border-navy bg-navy text-gold"
+                            : "border-line bg-white text-navy hover:border-navy/40"
+                        }`}
+                      >
+                        {g}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setStep(stepIndex("checkup_timeline"))}
+            className="mt-8 w-full rounded-pill bg-navy py-3.5 font-heading text-sm font-bold text-gold"
+          >
+            {Object.keys(retakeGrades).length > 0 ? "Jatka — suunnitellaan korotukset" : "Kirjoitan kaikki ensimmäistä kertaa — jatka"}
           </button>
         </div>
       )}
@@ -339,17 +499,22 @@ export default function YoQuiz() {
           <span className="inline-flex rounded-pill bg-navy/5 px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-navy/60">
             Tavoite
           </span>
-          <h2 className="mt-4 font-heading text-2xl font-extrabold text-navy">Mikä on tärkein tavoitteesi?</h2>
-          <p className="mt-3 text-sm text-navy/70">Syksyn 2026 kokeisiin valmistautuessa.</p>
+          <h2 className="mt-4 font-heading text-2xl font-extrabold text-navy">Mitä haluat yo-kokeesta?</h2>
+          <p className="mt-3 text-sm text-navy/70">
+            Valitse lähin tavoite — suunnitelma räätälöidään syksyn 2026 kokeisiin sen mukaan.
+          </p>
           <ul className="mt-6 space-y-2">
             {YO_GOALS.map((g) => (
               <li key={g.id}>
                 <button
                   type="button"
                   onClick={() => pickGoal(g)}
-                  className="w-full rounded-xl border border-line px-4 py-3 text-left text-sm font-semibold text-navy transition hover:border-navy hover:bg-mist"
+                  className="w-full rounded-xl border border-line px-4 py-3 text-left transition hover:border-navy hover:bg-mist"
                 >
-                  {g.label}
+                  <span className="block text-sm font-semibold text-navy">{g.label}</span>
+                  {g.hint && (
+                    <span className="mt-1 block text-xs leading-relaxed text-navy/60">{g.hint}</span>
+                  )}
                 </button>
               </li>
             ))}
@@ -434,7 +599,7 @@ export default function YoQuiz() {
             Henkilökohtainen yo-suunnitelmasi on valmis
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-navy/75">
-            Kirjoita sähköpostisi, niin näet suunnitelman ja hinnan heti. Lähetämme kopion myös postiisi.
+            Kirjoita sähköpostisi, niin näet suunnitelman ja henkilökohtaisen hinnan heti tällä sivulla.
           </p>
           {offerError && <p className="mt-4 text-sm font-semibold text-red-600">{offerError}</p>}
           <form onSubmit={finalizeWithEmail} className="mt-6 space-y-4">
@@ -459,11 +624,15 @@ export default function YoQuiz() {
         </div>
       )}
 
-      {phase === "result" && recommendation?.product && (
+      {phase === "result" && recommendation?.product && !resultRevealed && (
+        <YoQuizAnalyzing destination={destination} onComplete={() => setResultRevealed(true)} />
+      )}
+
+      {phase === "result" && recommendation?.product && resultRevealed && (
         <div className="rounded-card border border-gold/40 bg-white p-6 shadow-glow md:p-8">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex rounded-pill bg-navy px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-gold">
-              Henkilökohtainen suunnitelma
+              Vain sinulle räätälöity
             </span>
             <span className="text-xs font-semibold text-navy/45">
               Tarkastus {new Date().toLocaleDateString("fi-FI")}
@@ -473,17 +642,15 @@ export default function YoQuiz() {
           <h2 className="mt-5 font-heading text-2xl font-extrabold leading-tight text-navy md:text-3xl">
             {recommendation.personalTitle}
           </h2>
-          <p className="mt-3 text-sm leading-relaxed text-navy/75">{recommendation.headline}</p>
+          <p className="mt-3 text-sm leading-relaxed text-navy/75">
+            Vastaustesi perusteella laadittu henkilökohtainen yo-suunnitelma — ei geneerinen paketti.
+          </p>
+
+          <YoPlanDashboard visual={planVisual} />
 
           {recommendation.consistencyLine && (
-            <p className="mt-4 rounded-xl border border-line bg-mist px-4 py-3 text-sm text-navy/80">
+            <p className="mt-5 rounded-xl border border-line bg-mist px-4 py-3 text-sm text-navy/80">
               {recommendation.consistencyLine}
-            </p>
-          )}
-
-          {recommendation.checkupLine && (
-            <p className="mt-3 rounded-xl border border-line bg-white px-4 py-3 text-xs text-navy/65">
-              {recommendation.checkupLine}
             </p>
           )}
 
@@ -526,47 +693,24 @@ export default function YoQuiz() {
             )}
           </div>
 
-          <div className="mt-8 rounded-xl border border-gold/30 bg-navy/5 p-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Henkilökohtainen hinta</p>
-            <div className="mt-3 flex flex-wrap items-baseline gap-3">
-              <p className="font-heading text-4xl font-extrabold text-navy">
-                {offerLoading ? "…" : displayPrice} €
-              </p>
-              {!offerLoading && showOfferDiscount && (
-                <p className="text-lg font-semibold text-navy/40 line-through">{listPrice} €</p>
-              )}
-              {!offerLoading && showCompareAt && compareAt !== listPrice && (
-                <p className="text-sm font-semibold text-navy/45 line-through">{compareAt} € erikseen</p>
-              )}
-            </div>
-            {offer && (
-              <p className="mt-2 text-sm font-semibold text-gold-dark">
-                Hinta perustuu tarkastukseen — ei yleinen listahinta.
-              </p>
-            )}
-            {!offerLoading && recommendation.savingsVsIndividual != null && recommendation.savingsVsIndividual > 0 && (
-              <p className="mt-2 text-sm font-semibold text-navy">
-                Säästät {recommendation.savingsVsIndividual} € verrattuna erillisiin kursseihin.
-              </p>
-            )}
-          </div>
-
-          <p className="mt-5 text-sm leading-relaxed text-navy/75">{recommendation.reason}</p>
-
-          <a
-            href={
+          <YoPlanOfferCard
+            visual={planVisual}
+            displayPrice={displayPrice}
+            listPrice={listPrice}
+            compareAt={compareAt}
+            showOfferDiscount={showOfferDiscount}
+            showCompareAt={showCompareAt}
+            offerLoading={offerLoading}
+            savingsVsIndividual={recommendation.savingsVsIndividual}
+            checkoutUrl={
               offer?.checkoutUrl ||
               checkoutUrl(recommendation.productId, { utm_source: "laudaturpro", utm_medium: "quiz" })
             }
-            className={`mt-6 flex w-full items-center justify-center gap-2 rounded-pill bg-gold px-6 py-3.5 font-heading text-sm font-bold text-navy hover:bg-gold-light ${
-              offerLoading ? "pointer-events-none opacity-60" : ""
-            }`}
-          >
-            {offerLoading ? "Päivitetään…" : `Aloita suunnitelmalla — ${displayPrice} €`}
-          </a>
-          <p className="mt-2 text-center text-xs text-navy/45">
-            Suunnitelma sidottu tarkastukseen · voimassa 7 päivää · kopio lähetetty {email.trim()}
-          </p>
+            email={email}
+            offerEmailSent={offerEmailSent}
+          />
+
+          <p className="mt-5 text-sm leading-relaxed text-navy/75">{recommendation.reason}</p>
 
           {recommendation.also && (
             <div className="mt-8 rounded-xl border border-dashed border-line bg-mist/50 p-4 text-center">

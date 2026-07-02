@@ -40,6 +40,10 @@ export async function POST(request) {
     ? data.selectedLabels.filter((s) => typeof s === "string")
     : [];
   const goalLabel = typeof data?.goalLabel === "string" ? data.goalLabel : null;
+  const gradeLabel = typeof data?.gradeLabel === "string" ? data.gradeLabel.trim() || null : null;
+  const retakeLabels = Array.isArray(data?.retakeLabels)
+    ? data.retakeLabels.filter((s) => typeof s === "string").slice(0, 12)
+    : [];
 
   const lead = {
     email,
@@ -52,7 +56,9 @@ export async function POST(request) {
     wtpScore,
     checkoutUrl,
     selectedLabels,
+    retakeLabels,
     goalLabel,
+    gradeLabel,
     source: "laudaturpro_quiz",
     utm: data?.utm && typeof data.utm === "object" ? data.utm : null,
     receivedAt: new Date().toISOString(),
@@ -81,7 +87,9 @@ export async function POST(request) {
           source: lead.source,
           scores: {
             selectedLabels,
+            retakeLabels,
             goalLabel,
+            gradeLabel,
             listPriceEur,
             checkoutUrl,
           },
@@ -132,11 +140,15 @@ export async function POST(request) {
       stream: "laudaturpro",
       payload: {
         personalTitle: personalTitle || productName,
+        productId,
         priceEur,
         listPriceEur: listPriceEur || priceEur,
+        wtpScore,
         checkoutUrl,
         selectedLabels,
+        retakeLabels,
         goalLabel,
+        gradeLabel,
       },
     }).catch((err) => console.error("[DRIP] enroll failed", err));
   }
