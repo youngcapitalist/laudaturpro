@@ -20,8 +20,11 @@ create index if not exists lead_drip_enrollments_due_idx
   on public.lead_drip_enrollments (next_send_at)
   where status = 'active';
 
-create index if not exists lead_drip_enrollments_stream_idx
-  on public.lead_drip_enrollments (stream);
+create unique index if not exists lead_drip_enrollments_email_key_stream_key
+  on public.lead_drip_enrollments (email_key, stream);
+
+-- Vanha osittainen indeksi (PostgREST upsert ei tunnista sitä):
+-- create unique index ... where (email_key is not null)
 
 -- Peruutus stream-kohtaisesti (ei vaikuta muihin kokeisiin).
 create table if not exists public.marketing_stream_unsubscribes (

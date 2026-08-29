@@ -135,7 +135,7 @@ export async function POST(request) {
 
   const dripEligible = await canSendDrip(email, "laudaturpro");
   if (dripEligible.ok && checkoutUrl && priceEur) {
-    await enrollInDrip({
+    const drip = await enrollInDrip({
       email,
       stream: "laudaturpro",
       payload: {
@@ -150,7 +150,11 @@ export async function POST(request) {
         goalLabel,
         gradeLabel,
       },
-    }).catch((err) => console.error("[DRIP] enroll failed", err));
+    }).catch((err) => {
+      console.error("[DRIP] enroll failed", err);
+      return { error: "enroll_exception" };
+    });
+    if (drip?.error) console.error("[DRIP] enroll rejected", drip);
   }
 
   return Response.json({ ok: true, emailSent });
