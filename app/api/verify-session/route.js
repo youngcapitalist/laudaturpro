@@ -1,9 +1,13 @@
 import Stripe from "stripe";
+import { markDripConverted } from "../../../lib/drip/enroll.js";
+import { canonicalEmailKey, normalizeEmail } from "../../../lib/drip/email-normalize.js";
+import { sendWelcomeEmail } from "../../../lib/welcome-email.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ACCESS_UNTIL = "2026-07-15T21:00:00.000Z"; // kevään 2026 yo-kokeiden jälkeen
+/** Syksyn 2026 yo-kokeiden jälkeen */
+const ACCESS_UNTIL = "2026-10-05T21:00:00.000Z";
 
 async function saveAccess(record) {
   const supaUrl = process.env.SUPABASE_URL;
@@ -57,9 +61,10 @@ export async function POST(request) {
   }
 
   const meta = session.metadata || {};
-  const email = session.customer_details?.email || session.customer_email || "";
+  const email = normalizeEmail(session.customer_details?.email || session.customer_email || "");
   const record = {
     email,
+    email_key: canonicalEmailKey(email),
     name: meta.customer_name || session.customer_details?.name || null,
     product_id: meta.product_id || null,
     product_name: meta.product_name || null,
@@ -72,6 +77,19 @@ export async function POST(request) {
   };
 
   const result = await saveAccess(record);
+
+  if (result.ok && email) {
+    await markDripConverted(email, "laudaturpro").catch((err) =>
+      console.error("[DRIP] mark converted failed", err)
+    );
+    await sendWelcomeEmail({
+      email,
+      name: record.name,
+      productId: record.product_id,
+      productName: record.product_name,
+      sessionId,
+    }).catch((err) => console.error("[WELCOME EMAIL] send failed", err));
+  }
 
   return Response.json({
     ok: true,
