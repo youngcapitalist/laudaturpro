@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { markDripConverted } from "../../../lib/drip/enroll.js";
 import { canonicalEmailKey, normalizeEmail } from "../../../lib/drip/email-normalize.js";
+import { sendWelcomeEmail } from "../../../lib/welcome-email.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,6 +82,13 @@ export async function POST(request) {
     await markDripConverted(email, "laudaturpro").catch((err) =>
       console.error("[DRIP] mark converted failed", err)
     );
+    await sendWelcomeEmail({
+      email,
+      name: record.name,
+      productId: record.product_id,
+      productName: record.product_name,
+      sessionId,
+    }).catch((err) => console.error("[WELCOME EMAIL] send failed", err));
   }
 
   return Response.json({

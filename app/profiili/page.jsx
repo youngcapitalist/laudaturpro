@@ -5,6 +5,7 @@ import { getProfile } from "../../lib/profile";
 import { getAccessibleSubjectIds } from "../../lib/access";
 import { LaudaturNav, LaudaturFooter } from "../components/LaudaturChrome";
 import ProfileForm from "./ProfileForm";
+import SetPasswordForm from "./SetPasswordForm";
 import { checkoutUrl } from "../config/site";
 
 export const metadata = {
@@ -29,7 +30,7 @@ async function getAccessRows(email) {
   return res.json();
 }
 
-export default async function ProfiiliPage() {
+export default async function ProfiiliPage({ searchParams }) {
   const supabase = createClient();
   const {
     data: { user },
@@ -40,17 +41,20 @@ export default async function ProfiiliPage() {
   const accessRows = await getAccessRows(user.email);
   const subjectIds = await getAccessibleSubjectIds(user.email);
   const hasAccess = subjectIds.length > 0;
+  const setPasswordPrompt = searchParams?.["aseta-salasana"] === "1";
 
   return (
     <main className="min-h-screen bg-slate-wash">
       <LaudaturNav />
       <section className="mx-auto max-w-lg px-5 py-14 md:px-8">
         <h1 className="font-heading text-3xl font-extrabold text-navy">Profiili</h1>
-        <p className="mt-2 text-sm text-navy/70">Sama tili kuin muissa kursseissasi — kirjautuminen sähköpostilinkillä.</p>
+        <p className="mt-2 text-sm text-navy/70">Hallitse tiliäsi ja kurssipääsyäsi.</p>
 
         <div className="mt-8">
           <ProfileForm email={user.email} initialName={profile?.first_name} />
         </div>
+
+        <SetPasswordForm autoOpen={setPasswordPrompt} />
 
         <div className="mt-8 rounded-card border border-line bg-white p-6 shadow-card">
           <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">LaudaturPro-pääsy</p>

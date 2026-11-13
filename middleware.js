@@ -43,5 +43,5 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/", "/kurssi/:path*", "/profiili", "/admin/:path*"],
+  matcher: ["/", "/auth/callback", "/kurssi/:path*", "/profiili", "/admin/:path*"],
 };

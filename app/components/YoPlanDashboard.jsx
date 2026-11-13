@@ -96,9 +96,15 @@ export default function YoPlanDashboard({ visual }) {
           .
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {visual.goalLabel && (
-            <span className="rounded-pill bg-white/10 px-3 py-1 text-xs font-semibold">{visual.goalLabel}</span>
-          )}
+          {visual.subjectGoalTags?.length > 0
+            ? visual.subjectGoalTags.map(({ subject, goal }) => (
+                <span key={subject} className="rounded-pill bg-white/10 px-3 py-1 text-xs font-semibold">
+                  {subject}: {goal}
+                </span>
+              ))
+            : visual.goalLabel && (
+                <span className="rounded-pill bg-white/10 px-3 py-1 text-xs font-semibold">{visual.goalLabel}</span>
+              )}
           {visual.focusLabel && (
             <span className="rounded-pill bg-white/10 px-3 py-1 text-xs font-semibold">
               Painopiste: {visual.focusLabel}

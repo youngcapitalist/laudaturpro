@@ -2,14 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getSubjectCardMeta, subjectHasVocabulary } from "../../../lib/vocabulary-registry";
 
 export function SubjectHeader({ subjectId, professor }) {
   const pathname = usePathname();
   const base = `/kurssi/${subjectId}`;
+  const cardMeta = subjectHasVocabulary(subjectId) ? getSubjectCardMeta(subjectId) : null;
 
   const tabs = [
     { href: base, label: "Teoria", active: pathname === base },
     { href: `${base}/harjoittele`, label: "Harjoittelu", active: pathname.endsWith("/harjoittele") },
+    ...(cardMeta
+      ? [{ href: `${base}/sanasto`, label: cardMeta.tabLabel, active: pathname.endsWith("/sanasto") }]
+      : []),
     { href: `${base}/chat`, label: "AI-professori", active: pathname.endsWith("/chat") },
     { href: `${base}/harkkakoe`, label: "Harkkakoe", active: pathname.endsWith("/harkkakoe") },
   ];

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { EXAM_TYPE_LABELS } from "../../../lib/exam-content";
+import { usesMathAnswerEditor } from "../../../lib/math-answer";
+import MathAnswerDisplay from "../../components/course/MathAnswerDisplay";
 
 function ReviewForm({ submission, onReviewed }) {
   const [score, setScore] = useState("");
@@ -98,7 +100,13 @@ function SubmissionCard({ submission, onReviewed }) {
 
       <div className="mt-4 rounded-xl border border-line bg-slate-wash/60 p-4">
         <p className="text-xs font-bold uppercase tracking-widest text-navy/45">Opiskelijan vastaus</p>
-        <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-navy/90">{submission.answerText}</div>
+        <div className="mt-2">
+          {usesMathAnswerEditor(submission.subjectId, submission.taskType) ? (
+            <MathAnswerDisplay latex={submission.answerText} />
+          ) : (
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-navy/90">{submission.answerText}</div>
+          )}
+        </div>
       </div>
 
       {reviewed ? (

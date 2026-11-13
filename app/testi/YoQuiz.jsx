@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { checkoutUrl } from "../config/site";
 import {
   YO_EXAM_GRADES,
-  YO_GOALS,
+  YO_GRADE_GOALS,
   YO_GRADE_LEVELS,
+  YO_PASS_GOAL,
   YO_QUIZ_SUBJECTS,
   buildPersonalizedOffer,
   quizResult,
@@ -16,6 +17,7 @@ import { persistOffer } from "../../lib/wtp-persist";
 import { buildPlanVisual } from "../../lib/yo-plan-visual";
 import YoPlanDashboard, { YoPlanOfferCard } from "../components/YoPlanDashboard";
 import YoQuizAnalyzing from "../components/YoQuizAnalyzing";
+import TestimonialCarousel from "../components/TestimonialCarousel";
 
 const STEPS = [
   "subjects",
@@ -47,7 +49,8 @@ export default function YoQuiz({ quizFirst = false }) {
   const [gradeLevel, setGradeLevel] = useState(null);
   const [retakeGrades, setRetakeGrades] = useState({});
   const [checkupAnswers, setCheckupAnswers] = useState({});
-  const [goal, setGoal] = useState(null);
+  /** @type {Record<string, { id: string, label: string }>} */
+  const [subjectGoals, setSubjectGoals] = useState({});
   const [focusSubject, setFocusSubject] = useState(null);
   const [wtpStep, setWtpStep] = useState(0);
   const [wtpAnswers, setWtpAnswers] = useState({});
@@ -75,13 +78,13 @@ export default function YoQuiz({ quizFirst = false }) {
       buildPersonalizedOffer({
         selectedSubjectIds: selectedSubjects,
         focusSubjectId: focusSubject,
-        goal,
+        subjectGoals,
         bundleSubjectIds,
         checkupAnswers,
         gradeLevel,
         retakeGrades,
       }),
-    [selectedSubjects, focusSubject, goal, bundleSubjectIds, checkupAnswers, gradeLevel, retakeGrades]
+    [selectedSubjects, focusSubject, subjectGoals, bundleSubjectIds, checkupAnswers, gradeLevel, retakeGrades]
   );
 
   const recommendation = useMemo(() => {
@@ -110,7 +113,7 @@ export default function YoQuiz({ quizFirst = false }) {
     if (!personalOffer) return null;
     return buildPlanVisual({
       checkupAnswers,
-      goal,
+      subjectGoals,
       focusSubjectId: focusSubject,
       coveredIds: personalOffer.coveredIds,
       coveredLabels: personalOffer.coveredLabels,
@@ -119,7 +122,9 @@ export default function YoQuiz({ quizFirst = false }) {
       listPrice,
       gradeLevelId: gradeLevel?.id ?? null,
     });
-  }, [personalOffer, checkupAnswers, goal, focusSubject, destination, displayPrice, listPrice, gradeLevel]);
+  }, [personalOffer, checkupAnswers, subjectGoals, focusSubject, destination, displayPrice, listPrice, gradeLevel]);
+
+  const revealResult = useCallback(() => setResultRevealed(true), []);
 
   useEffect(() => {
     if (phase !== "result") setResultRevealed(false);
@@ -165,15 +170,25 @@ export default function YoQuiz({ quizFirst = false }) {
     setStep((s) => s + 1);
   }
 
-  function pickGoal(g) {
-    setGoal(g);
+  function setSubjectGoal(subjectId, g) {
+    setSubjectGoals((prev) => ({ ...prev, [subjectId]: g }));
+  }
+
+  function continueFromGoals() {
     const real = selectedSubjects.filter((s) => s !== "unknown");
+    if (real.some((id) => !subjectGoals[id])) return;
     if (real.length <= 1) {
       setFocusSubject(real[0] || null);
       setStep(stepIndex("wtp"));
     } else {
       setStep(stepIndex("focus"));
     }
+  }
+
+  function pickGlobalGoal(g) {
+    setSubjectGoals({ unknown: g });
+    setFocusSubject(null);
+    setStep(stepIndex("wtp"));
   }
 
   function pickFocus(id) {
@@ -261,9 +276,11 @@ export default function YoQuiz({ quizFirst = false }) {
       const nextOffer = buildPersonalizedOffer({
         selectedSubjectIds: selectedSubjects,
         focusSubjectId: focusSubject,
-        goal,
+        subjectGoals,
         bundleSubjectIds: next,
         checkupAnswers,
+        gradeLevel,
+        retakeGrades,
       });
       if (!nextOffer) return;
       await fetchOffer(nextOffer.productId, next);
@@ -292,7 +309,7 @@ export default function YoQuiz({ quizFirst = false }) {
     setGradeLevel(null);
     setRetakeGrades({});
     setCheckupAnswers({});
-    setGoal(null);
+    setSubjectGoals({});
     setFocusSubject(null);
     setWtpStep(0);
     setWtpAnswers({});
@@ -494,31 +511,114 @@ export default function YoQuiz({ quizFirst = false }) {
         </div>
       )}
 
-      {phase === "goal" && (
+      {phase === "goal" && focusOptions.length === 0 && (
         <div className="rounded-card border border-line bg-white p-6 shadow-card md:p-8">
           <span className="inline-flex rounded-pill bg-navy/5 px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-navy/60">
             Tavoite
           </span>
           <h2 className="mt-4 font-heading text-2xl font-extrabold text-navy">Mitä haluat yo-kokeesta?</h2>
           <p className="mt-3 text-sm text-navy/70">
-            Valitse lähin tavoite — suunnitelma räätälöidään syksyn 2026 kokeisiin sen mukaan.
+            Valitse ensin riittääkö läpäisy, vai tavoitteletko tiettyä arvosanaa.
           </p>
-          <ul className="mt-6 space-y-2">
-            {YO_GOALS.map((g) => (
-              <li key={g.id}>
+
+          <button
+            type="button"
+            onClick={() => pickGlobalGoal(YO_PASS_GOAL)}
+            className="mt-6 w-full rounded-xl border border-line px-4 py-4 text-left transition hover:border-navy hover:bg-mist"
+          >
+            <span className="block font-heading text-base font-bold text-navy">{YO_PASS_GOAL.label}</span>
+            <span className="mt-1 block text-xs leading-relaxed text-navy/60">{YO_PASS_GOAL.hint}</span>
+          </button>
+
+          <div className="mt-8">
+            <p className="text-xs font-bold uppercase tracking-widest text-navy/50">Tai tavoittele arvosanaa</p>
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              {YO_GRADE_GOALS.map((g) => (
                 <button
+                  key={g.id}
                   type="button"
-                  onClick={() => pickGoal(g)}
-                  className="w-full rounded-xl border border-line px-4 py-3 text-left transition hover:border-navy hover:bg-mist"
+                  onClick={() => pickGlobalGoal({ id: g.id, label: g.fullLabel, hint: g.hint })}
+                  title={g.hint}
+                  className="rounded-xl border border-line bg-white px-2 py-4 text-center transition hover:border-navy hover:bg-mist"
                 >
-                  <span className="block text-sm font-semibold text-navy">{g.label}</span>
-                  {g.hint && (
-                    <span className="mt-1 block text-xs leading-relaxed text-navy/60">{g.hint}</span>
-                  )}
+                  <span className="font-heading text-2xl font-extrabold text-navy">{g.label}</span>
+                  <span className="mt-1 block text-[10px] leading-tight text-navy/50">{g.hint.split(" — ")[0]}</span>
                 </button>
-              </li>
-            ))}
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {phase === "goal" && focusOptions.length > 0 && (
+        <div className="rounded-card border border-line bg-white p-6 shadow-card md:p-8">
+          <span className="inline-flex rounded-pill bg-navy/5 px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-navy/60">
+            Tavoite
+          </span>
+          <h2 className="mt-4 font-heading text-2xl font-extrabold text-navy">Tavoite aineittain</h2>
+          <p className="mt-3 text-sm leading-relaxed text-navy/70">
+            Valitse jokaiselle aineelle erikseen: riittääkö läpäisy vai tavoitteletko tiettyä arvosanaa — esim. äidinkieleen L
+            ja matematiikkaan M.
+          </p>
+          <ul className="mt-6 space-y-4">
+            {focusOptions.map((id) => {
+              const label = YO_QUIZ_SUBJECTS.find((s) => s.id === id)?.label || id;
+              const picked = subjectGoals[id];
+              return (
+                <li
+                  key={id}
+                  className={`rounded-xl border px-4 py-4 transition ${picked ? "border-navy bg-mist/40" : "border-line"}`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-heading text-sm font-bold text-navy">{label}</span>
+                    <span className="text-xs font-semibold text-navy/50">
+                      {picked
+                        ? picked.id === "pass"
+                          ? "Tavoite: läpipääsy"
+                          : `Tavoite: ${picked.label.replace("Arvosana ", "")}`
+                        : "Valitse tavoite"}
+                    </span>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label={`Tavoite: ${label}`}>
+                    <button
+                      type="button"
+                      onClick={() => setSubjectGoal(id, YO_PASS_GOAL)}
+                      className={`rounded-md border px-3 py-1.5 text-xs font-bold transition-colors ${
+                        picked?.id === "pass"
+                          ? "border-navy bg-navy text-gold"
+                          : "border-line bg-white text-navy hover:border-navy/40"
+                      }`}
+                    >
+                      Läpi
+                    </button>
+                    {YO_GRADE_GOALS.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        title={g.hint}
+                        onClick={() => setSubjectGoal(id, { id: g.id, label: g.fullLabel })}
+                        className={`min-w-[2.35rem] rounded-md border px-2 py-1.5 font-heading text-sm font-bold transition-colors ${
+                          picked?.id === g.id
+                            ? "border-navy bg-navy text-gold"
+                            : "border-line bg-white text-navy hover:border-navy/40"
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
+          <button
+            type="button"
+            disabled={focusOptions.some((id) => !subjectGoals[id])}
+            onClick={continueFromGoals}
+            className="mt-8 w-full rounded-pill bg-navy py-3.5 font-heading text-sm font-bold text-gold disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Jatka tavoitteiden kanssa
+          </button>
         </div>
       )}
 
@@ -625,10 +725,11 @@ export default function YoQuiz({ quizFirst = false }) {
       )}
 
       {phase === "result" && recommendation?.product && !resultRevealed && (
-        <YoQuizAnalyzing destination={destination} onComplete={() => setResultRevealed(true)} />
+        <YoQuizAnalyzing destination={destination} onComplete={revealResult} />
       )}
 
       {phase === "result" && recommendation?.product && resultRevealed && (
+        <>
         <div className="rounded-card border border-gold/40 bg-white p-6 shadow-glow md:p-8">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex rounded-pill bg-navy px-3 py-1 font-heading text-[11px] font-bold uppercase tracking-wider text-gold">
@@ -728,6 +829,11 @@ export default function YoQuiz({ quizFirst = false }) {
             Aloita tarkastus alusta
           </button>
         </div>
+
+        <div className="relative left-1/2 mt-10 w-screen max-w-[100vw] -translate-x-1/2">
+          <TestimonialCarousel />
+        </div>
+        </>
       )}
     </div>
   );

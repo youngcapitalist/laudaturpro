@@ -2,6 +2,7 @@ import { createClient } from "../../../lib/supabase/server";
 import { canAccessSubject } from "../../../lib/access";
 import { getHarkkakoeTask } from "../../../lib/exam-content";
 import { createExamSubmission, listSubmissionsForUser } from "../../../lib/exam-submissions";
+import { isAnswerTooShort, usesMathAnswerEditor } from "../../../lib/math-answer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,15 +47,16 @@ export async function POST(request) {
   const taskId = typeof body?.taskId === "string" ? body.taskId.trim() : "";
   const answerText = typeof body?.answerText === "string" ? body.answerText.trim() : "";
 
-  if (!subjectId || !taskId || answerText.length < 50) {
+  const task = getHarkkakoeTask(subjectId, taskId);
+  if (!task) return Response.json({ error: "task_not_found" }, { status: 404 });
+
+  const mathEditor = usesMathAnswerEditor(subjectId, task.type);
+  if (!subjectId || !taskId || isAnswerTooShort(answerText, { usesMathEditor: mathEditor })) {
     return Response.json({ error: "answer_too_short" }, { status: 400 });
   }
 
   const allowed = await canAccessSubject(user.email, subjectId);
   if (!allowed) return Response.json({ error: "forbidden" }, { status: 403 });
-
-  const task = getHarkkakoeTask(subjectId, taskId);
-  if (!task) return Response.json({ error: "task_not_found" }, { status: 404 });
 
   try {
     const submission = await createExamSubmission({

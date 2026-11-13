@@ -88,7 +88,7 @@ export default function TestimonialCarousel() {
             {TESTIMONIAL_COUNT}+ opiskelijaa
           </p>
           <p className="mt-3 text-sm text-white/55 md:text-base">
-            valmistautumaan syksyn 2026 yo-kokeisiin
+            valmistautumaan yo-kokeisiin
           </p>
         </header>
 

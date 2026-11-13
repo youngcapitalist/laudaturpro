@@ -21,6 +21,33 @@ h3 {
   @apply font-heading;
 }
 
+.math-answer-field {
+  display: block;
+  width: 100%;
+  min-height: 14rem;
+  padding: 0.75rem 1rem;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--navy);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.math-answer-field::part(virtual-keyboard-toggle) {
+  display: none;
+}
+
+.math-answer-display .katex-display {
+  margin: 0.5rem 0;
+  overflow-x: auto;
+}
+
+.math-answer-display .math-answer-plain {
+  margin: 0.35rem 0;
+  white-space: pre-wrap;
+}
+
 @layer utilities {
   .hero-grid {
     background-image:

@@ -3,7 +3,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
-/** Deterministinen sekoitus tehtävän id:n pohjalta — sama järjestys joka latauksella. */
+const SESSION_SIZE = 8;
+
+/** Fisher–Yates-sekoitus. */
+function shuffleArray(items) {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function pickSessionQuestions(questions) {
+  return shuffleArray(questions).slice(0, Math.min(SESSION_SIZE, questions.length));
+}
+
+/** Deterministinen sekoitus vaihtoehdoille — sama järjestys joka latauksella. */
 function shuffledOrder(questionId, length) {
   let seed = 0;
   for (let i = 0; i < questionId.length; i++) seed = (seed * 31 + questionId.charCodeAt(i)) >>> 0;
@@ -119,10 +135,37 @@ function QuestionCard({ question, onAnswered, initialState }) {
   );
 }
 
+function SessionCompleteCard({ title, body, primaryLabel, onPrimary, secondaryLabel, onSecondary }) {
+  return (
+    <div className="rounded-card border border-emerald-200 bg-emerald-50 p-6 text-center">
+      <p className="font-heading text-lg font-bold text-emerald-900">{title}</p>
+      {body && <p className="mt-2 text-sm leading-relaxed text-emerald-800">{body}</p>}
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <button type="button" onClick={onPrimary} className="rounded-pill bg-navy px-5 py-2.5 text-sm font-bold text-gold">
+          {primaryLabel}
+        </button>
+        {secondaryLabel && onSecondary && (
+          <button
+            type="button"
+            onClick={onSecondary}
+            className="rounded-pill border border-navy/20 bg-white px-5 py-2.5 text-sm font-semibold text-navy"
+          >
+            {secondaryLabel}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function PracticeView({ subjectId, questions }) {
   const [progress, setProgress] = useState(null);
-  const [answers, setAnswers] = useState({});
-  const [mode, setMode] = useState("all");
+  const [sessionNumber, setSessionNumber] = useState(1);
+  /** @type {"practice"|"review"|"between"} */
+  const [phase, setPhase] = useState("practice");
+  const [sessionQuestions, setSessionQuestions] = useState(() => pickSessionQuestions(questions));
+  const [reviewQuestions, setReviewQuestions] = useState([]);
+  const [sessionAnswers, setSessionAnswers] = useState({});
 
   useEffect(() => {
     let cancelled = false;
@@ -138,20 +181,60 @@ export function PracticeView({ subjectId, questions }) {
   }, [subjectId]);
 
   const handleAnswered = useCallback((questionId, correct, chosenIndex) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: { correct, chosenIndex } }));
+    setSessionAnswers((prev) => ({ ...prev, [questionId]: { correct, chosenIndex } }));
     setProgress((prev) => {
       if (!prev) return prev;
       const wasInQueue = prev.reviewQueue.includes(questionId);
-      const reviewQueue = correct ? prev.reviewQueue.filter((id) => id !== questionId) : wasInQueue ? prev.reviewQueue : [...prev.reviewQueue, questionId];
+      const reviewQueue = correct
+        ? prev.reviewQueue.filter((id) => id !== questionId)
+        : wasInQueue
+          ? prev.reviewQueue
+          : [...prev.reviewQueue, questionId];
       return { ...prev, reviewQueue };
     });
   }, []);
 
-  const reviewSet = useMemo(() => new Set(progress?.reviewQueue ?? []), [progress]);
-  const visibleQuestions = mode === "review" ? questions.filter((q) => reviewSet.has(q.id) && !answers[q.id]) : questions;
+  const activeQuestions = phase === "review" ? reviewQuestions : sessionQuestions;
+  const sessionTotal = activeQuestions.length;
+  const sessionAnswered = activeQuestions.filter((q) => sessionAnswers[q.id]).length;
+  const sessionCorrect = activeQuestions.filter((q) => sessionAnswers[q.id]?.correct).length;
+  const sessionComplete = sessionTotal > 0 && sessionAnswered === sessionTotal;
 
-  const sessionAnswered = Object.keys(answers).length;
-  const sessionCorrect = Object.values(answers).filter((a) => a.correct).length;
+  const practiceWrong = useMemo(
+    () => sessionQuestions.filter((q) => sessionAnswers[q.id] && !sessionAnswers[q.id].correct),
+    [sessionQuestions, sessionAnswers]
+  );
+
+  const reviewStillWrong = useMemo(
+    () => reviewQuestions.filter((q) => sessionAnswers[q.id] && !sessionAnswers[q.id].correct),
+    [reviewQuestions, sessionAnswers]
+  );
+
+  const reviewAllCorrect = phase === "review" && sessionComplete && reviewStillWrong.length === 0;
+
+  useEffect(() => {
+    if (!sessionComplete) return;
+    if (phase === "practice" || phase === "review") {
+      setPhase("between");
+    }
+  }, [sessionComplete, phase]);
+
+  function startNewSession() {
+    setSessionQuestions(pickSessionQuestions(questions));
+    setReviewQuestions([]);
+    setSessionAnswers({});
+    setPhase("practice");
+    setSessionNumber((n) => n + 1);
+  }
+
+  function startReview(wrongList) {
+    setReviewQuestions(wrongList);
+    setSessionAnswers({});
+    setPhase("review");
+  }
+
+  const reviewSet = useMemo(() => new Set(progress?.reviewQueue ?? []), [progress]);
+  const showGlobalReviewBanner = reviewSet.size > 0 && phase === "practice" && sessionAnswered === 0;
 
   return (
     <div className="space-y-6">
@@ -171,7 +254,13 @@ export function PracticeView({ subjectId, questions }) {
                 )}
               </>
             )}
-            {sessionAnswered > 0 && <ProgressPill label="Tämä sessio" value={`${sessionCorrect}/${sessionAnswered}`} tone="good" />}
+            {phase !== "between" && sessionTotal > 0 && (
+              <ProgressPill
+                label={phase === "review" ? "Kertaus" : `Setti ${sessionNumber}`}
+                value={`${sessionAnswered}/${sessionTotal}`}
+                tone="good"
+              />
+            )}
           </div>
         </div>
 
@@ -184,39 +273,83 @@ export function PracticeView({ subjectId, questions }) {
         )}
       </section>
 
-      {reviewSet.size > 0 && (
+      {showGlobalReviewBanner && (
         <div className="flex flex-wrap items-center gap-3 rounded-card border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-semibold text-amber-900">
-            Kertausjonossa {reviewSet.size} tehtävää — kertaa väärin menneet, kunnes ne sujuvat.
+            Kertausjonossa {reviewSet.size} tehtävää aiemmista yrityksistä.
           </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setMode(mode === "review" ? "all" : "review");
-                setAnswers({});
-              }}
-              className="rounded-pill bg-navy px-4 py-2 text-xs font-bold text-gold"
-            >
-              {mode === "review" ? "Näytä kaikki tehtävät" : "Aloita kertaus"}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const toReview = questions.filter((q) => reviewSet.has(q.id));
+              startReview(toReview);
+            }}
+            className="rounded-pill bg-navy px-4 py-2 text-xs font-bold text-gold"
+          >
+            Kertaa jonossa olevat
+          </button>
         </div>
       )}
 
-      {visibleQuestions.length === 0 ? (
-        <div className="rounded-card border border-emerald-200 bg-emerald-50 p-6 text-center">
-          <p className="font-heading font-bold text-emerald-900">Kertausjono tyhjä — hienoa työtä!</p>
-          <button type="button" onClick={() => { setMode("all"); setAnswers({}); }} className="mt-3 rounded-pill bg-navy px-4 py-2 text-xs font-bold text-gold">
-            Takaisin kaikkiin tehtäviin
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {visibleQuestions.map((q) => (
-            <QuestionCard key={`${mode}-${q.id}`} question={q} onAnswered={handleAnswered} initialState={answers[q.id] ?? null} />
-          ))}
-        </div>
+      {phase === "between" && practiceWrong.length > 0 && sessionComplete && reviewQuestions.length === 0 && (
+        <SessionCompleteCard
+          title={`Setti ${sessionNumber} valmis — ${sessionCorrect}/${sessionTotal} oikein`}
+          body={`${practiceWrong.length} tehtävää meni väärin. Kertaa ne ensin, sitten voit aloittaa uuden setin.`}
+          primaryLabel={`Kertaa väärät (${practiceWrong.length})`}
+          onPrimary={() => startReview(practiceWrong)}
+          secondaryLabel="Ohita kertaus → uusi setti"
+          onSecondary={startNewSession}
+        />
+      )}
+
+      {phase === "between" && reviewAllCorrect && (
+        <SessionCompleteCard
+          title="Kertaus valmis — hienoa!"
+          body="Kaikki väärin menneet on nyt kierretty oikein. Haluatko uuden setin?"
+          primaryLabel="Uusi setti (8 tehtävää)"
+          onPrimary={startNewSession}
+        />
+      )}
+
+      {phase === "between" && practiceWrong.length === 0 && reviewQuestions.length === 0 && sessionComplete && (
+        <SessionCompleteCard
+          title={`Loistavaa! ${sessionCorrect}/${sessionTotal} oikein`}
+          body="Kaikki oikein tässä setissä. Aloita uusi setti ja jatka harjoittelua."
+          primaryLabel="Uusi setti (8 tehtävää)"
+          onPrimary={startNewSession}
+        />
+      )}
+
+      {phase === "between" && sessionComplete && reviewStillWrong.length > 0 && reviewQuestions.length > 0 && (
+        <SessionCompleteCard
+          title={`Kertauksessa ${reviewStillWrong.length} vielä väärin`}
+          body="Yritä uudelleen tai aloita silti uusi setti — väärät jäävät kertausjonoon."
+          primaryLabel={`Jatka kertausta (${reviewStillWrong.length})`}
+          onPrimary={() => startReview(reviewStillWrong)}
+          secondaryLabel="Uusi setti"
+          onSecondary={startNewSession}
+        />
+      )}
+
+      {(phase === "practice" || phase === "review") && (
+        <>
+          {phase === "review" && (
+            <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+              Kertaustila — {sessionCorrect}/{sessionAnswered} oikein · {sessionTotal - sessionAnswered} jäljellä
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {activeQuestions.map((q) => (
+              <QuestionCard
+                key={`${phase}-${sessionNumber}-${q.id}`}
+                question={q}
+                onAnswered={handleAnswered}
+                initialState={sessionAnswers[q.id] ?? null}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       <div className="rounded-card border border-line bg-mist/50 p-5 text-sm text-navy/75">

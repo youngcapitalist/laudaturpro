@@ -18,17 +18,18 @@ function easeOutCubic(t) {
 export default function YoQuizAnalyzing({ onComplete, destination = null }) {
   const [progress, setProgress] = useState(0);
   const durationRef = useRef(3500 + Math.random() * 1500);
-  const startedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    if (startedRef.current) return;
-    startedRef.current = true;
-
     const duration = durationRef.current;
     const start = performance.now();
     let frame = 0;
+    let doneTimer = 0;
+    let cancelled = false;
 
     const tick = (now) => {
+      if (cancelled) return;
       const elapsed = now - start;
       const linear = Math.min(1, elapsed / duration);
       const eased = easeOutCubic(linear);
@@ -38,13 +39,29 @@ export default function YoQuizAnalyzing({ onComplete, destination = null }) {
         frame = requestAnimationFrame(tick);
       } else {
         setProgress(100);
-        window.setTimeout(onComplete, 280);
+        doneTimer = window.setTimeout(() => {
+          if (!cancelled) onCompleteRef.current?.();
+        }, 280);
       }
     };
 
     frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [onComplete]);
+
+    // Varmuus: jos rAF jumittuu (taustavälilehti tms.), näytä tulos silti.
+    const fallbackTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setProgress(100);
+        onCompleteRef.current?.();
+      }
+    }, duration + 800);
+
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      window.clearTimeout(doneTimer);
+      window.clearTimeout(fallbackTimer);
+    };
+  }, []);
 
   const activeIndex = STEPS.reduce((idx, step, i) => (progress >= step.at ? i : idx), 0);
 

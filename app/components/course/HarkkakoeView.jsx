@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { EXAM_TYPE_LABELS } from "../../../lib/exam-content";
+import { answerTooShortMessage, usesMathAnswerEditor } from "../../../lib/math-answer";
 import { estimateGrade, GRADE_ESTIMATE_DISCLAIMER } from "../../../lib/yo-grades";
+import MathAnswerEditor from "./MathAnswerEditor";
 
 const NEEDS_TEACHER_REVIEW = new Set(["lukutaito", "kirjoitustaito", "esseevastaus"]);
 
@@ -50,16 +52,42 @@ function SubmissionStatus({ submission }) {
   );
 }
 
+function AnswerField({ usesMathEditor, answer, onChange, disabled, rows = 12 }) {
+  if (usesMathEditor) {
+    return (
+      <MathAnswerEditor
+        value={answer}
+        onChange={onChange}
+        disabled={disabled}
+        placeholder="Kirjoita ratkaisu ja välivaiheet…"
+      />
+    );
+  }
+
+  return (
+    <textarea
+      value={answer}
+      onChange={(e) => onChange(e.target.value)}
+      rows={rows}
+      placeholder="Kirjoita vastauksesi tähän…"
+      disabled={disabled}
+      className="mt-3 w-full rounded-xl border border-line px-4 py-3 text-sm leading-relaxed focus:border-navy focus:outline-none focus:ring-2 focus:ring-gold/30 disabled:opacity-60"
+    />
+  );
+}
+
 function TaskSubmissionForm({ task, subjectId, submission, onSubmitted }) {
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const needsReview = NEEDS_TEACHER_REVIEW.has(task.type);
+  const usesMathEditor = usesMathAnswerEditor(subjectId, task.type);
 
   async function submit(e) {
     e.preventDefault();
-    if (answer.trim().length < 50) {
-      setError("Vastaus on liian lyhyt — kirjoita vähintään muutama virke.");
+    const shortMsg = answerTooShortMessage(answer, { usesMathEditor });
+    if (shortMsg) {
+      setError(shortMsg);
       return;
     }
     setLoading(true);
@@ -93,13 +121,7 @@ function TaskSubmissionForm({ task, subjectId, submission, onSubmitted }) {
             Lähetä uusi vastaus
           </summary>
           <form onSubmit={submit} className="mt-3 space-y-3">
-            <textarea
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              rows={10}
-              placeholder="Kirjoita vastauksesi tähän…"
-              className="w-full rounded-xl border border-line px-4 py-3 text-sm leading-relaxed focus:border-navy focus:outline-none focus:ring-2 focus:ring-gold/30"
-            />
+            <AnswerField usesMathEditor={usesMathEditor} answer={answer} onChange={setAnswer} disabled={loading} rows={10} />
             {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
             <button
               type="submit"
@@ -118,17 +140,15 @@ function TaskSubmissionForm({ task, subjectId, submission, onSubmitted }) {
     <form onSubmit={submit} className="mt-6 border-t border-line pt-5">
       <p className="text-xs font-bold uppercase tracking-widest text-gold-dark">Lähetä vastaus</p>
       <p className="mt-2 text-sm text-navy/70">
-        {needsReview
-          ? "Kirjoita vastauksesi alle ja lähetä opettajan arvioitavaksi. Saat pisteet ja kirjallisen palautteen."
-          : "Lähetä vastauksesi — voit myös harjoitella ensin AI-professorin kanssa."}
+        {usesMathEditor
+          ? "Kirjoita ratkaisu ja välivaiheet alla olevaan editoriin. Voit käyttää kaavapainikkeita tai avata symbolinäppäimistön."
+          : needsReview
+            ? "Kirjoita vastauksesi alle ja lähetä opettajan arvioitavaksi. Saat pisteet ja kirjallisen palautteen."
+            : "Lähetä vastauksesi — voit myös harjoitella ensin AI-professorin kanssa."}
       </p>
-      <textarea
-        value={answer}
-        onChange={(e) => setAnswer(e.target.value)}
-        rows={12}
-        placeholder="Kirjoita vastauksesi tähän…"
-        className="mt-3 w-full rounded-xl border border-line px-4 py-3 text-sm leading-relaxed focus:border-navy focus:outline-none focus:ring-2 focus:ring-gold/30"
-      />
+      <div className={usesMathEditor ? "mt-3" : ""}>
+        <AnswerField usesMathEditor={usesMathEditor} answer={answer} onChange={setAnswer} disabled={loading} />
+      </div>
       {error && <p className="mt-2 text-sm font-semibold text-red-600">{error}</p>}
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
